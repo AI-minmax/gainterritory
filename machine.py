@@ -26,7 +26,28 @@ class MACHINE():
 
     def find_best_selection(self):
         available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability([point1, point2])]
-        return random.choice(available)
+        candiate_line=self.check_triangle()
+        if len(candiate_line)==0:
+            return random.choice(candiate_line)
+        else:
+            return random.choice(available)
+
+    def check_triangle(self):
+        avail_triangle=[]
+        candiate_triangle=[]
+        for l1 in self.drawn_lines:
+            for l2 in self.drawn_lines:
+                if l1!=l2 and len(list(set([l1[0],l1[1],l2[0],l2[1]])))==3 and [[l1[0],l1[1]],[l2[0],l2[1]]] not in avail_triangle:
+                    avail_triangle.append([[l1[0],l1[1]],[l2[0],l2[1]]])
+                    if l1[0]==l2[0]:
+                        candiate_triangle.append([l1[1],l2[1]])
+                    elif l1[0]==l2[1]:
+                        candiate_triangle.append([l1[1],l2[0]])
+                    elif l1[1]==l2[0]:
+                        candiate_triangle.append([l1[0],l2[1]])
+                    elif l1[1]==l2[1]:
+                        candiate_triangle.append([l1[0],l2[0]])
+        return candiate_triangle
     
     def check_availability(self, line):
         line_string = LineString(line)
