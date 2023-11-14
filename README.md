@@ -25,3 +25,7 @@ pip install shapely
 1. 삼각형을 만들수 있는 상태인가?
 2. 랜덤 선분을 만들때 연결할 수 있는 선분인지 판단하는 것
 3. 민맥스 트리
+
+### xgboost lightgbm 자료 정리
+1. https://mjrecord.tistory.com/18
+   1. 2차원 배열+XGboost 적용한 예제
