@@ -26,28 +26,55 @@ class MACHINE():
 
     def find_best_selection(self):
         available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability([point1, point2])]
-        candiate_line=self.check_triangle()
-        if len(candiate_line)==0:
+        candiate_line=self.check_triangle(available)
+        if len(candiate_line)!=0:
             return random.choice(candiate_line)
         else:
             return random.choice(available)
 
-    def check_triangle(self):
+    def check_triangle(self, available):
         avail_triangle=[]
         candiate_triangle=[]
         for l1 in self.drawn_lines:
             for l2 in self.drawn_lines:
                 if l1!=l2 and len(list(set([l1[0],l1[1],l2[0],l2[1]])))==3 and [[l1[0],l1[1]],[l2[0],l2[1]]] not in avail_triangle:
                     avail_triangle.append([[l1[0],l1[1]],[l2[0],l2[1]]])
-                    if l1[0]==l2[0]:
-                        candiate_triangle.append([l1[1],l2[1]])
-                    elif l1[0]==l2[1]:
-                        candiate_triangle.append([l1[1],l2[0]])
-                    elif l1[1]==l2[0]:
-                        candiate_triangle.append([l1[0],l2[1]])
-                    elif l1[1]==l2[1]:
-                        candiate_triangle.append([l1[0],l2[0]])
+                    flag=True
+                    #list(set([l1[0],l1[1],l2[0],l2[1]))
+                    if l1[0]==l2[0] and [l1[1],l2[1]] in available:
+                        for p in self.whole_points:
+                            if self.inner_point(l1[0],l1[1],l2[1],p):
+                                flag=False
+                        if flag:
+                            candiate_triangle.append([l1[1],l2[1]])
+                    elif l1[0]==l2[1] and [l1[1],l2[0]] in available:
+                        for p in self.whole_points:
+                            if self.inner_point(l1[0],l1[1],l2[0],p):
+                                flag=False
+                        if flag:
+                            candiate_triangle.append([l1[1],l2[0]])
+                    elif l1[1]==l2[0] and [l1[0],l2[1]] in available:
+                        for p in self.whole_points:
+                            if self.inner_point(l1[0],l1[1],l2[1],p):
+                                flag=False
+                        if flag:
+                            candiate_triangle.append([l1[0],l2[1]])
+                    elif l1[1]==l2[1] and [l1[0],l2[0]] in available:
+                        for p in self.whole_points:
+                            if self.inner_point(l1[0],l1[1],l2[0],p):
+                                flag=False
+                        if flag:
+                            candiate_triangle.append([l1[0],l2[0]])
         return candiate_triangle
+
+    def inner_point(self, point1, point2, point3, point):
+        a=((point2[1]-point3[1])*(point[0]-point3[0])+(point3[0]-point2[0])*(point[1]-point3[1]))/((point2[1]-point3[1])*(point1[0]-point3[0])+(point3[0]-point2[0])*(point1[1]-point3[1]))
+        b=((point3[1]-point1[1])*(point[0]-point3[0])+(point1[0]-point3[0])*(point[1]-point3[1]))/((point2[1]-point3[1])*(point1[0]-point3[0])+(point3[0]-point2[0])*(point1[1]-point3[1]))
+        c=1-a-b
+        if a>0 and b>0 and c>0:
+            return True
+        else:
+            return False
     
     def check_availability(self, line):
         line_string = LineString(line)
