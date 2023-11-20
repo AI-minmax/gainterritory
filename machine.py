@@ -26,50 +26,60 @@ class MACHINE():
         self.location = []
         self.triangles = []  # [(a, b), (c, d), (e, f)]
 
+    #삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
+    #해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
+    def must_stealed_point(self, line):
+        connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
+        return len(connected_lines)
+
     # 유효한 선분인지 검사하는 함수 check_valid_line() (+상대방에게 steal 당하지 않도록 하는 최소한의 알고리즘 적용)
     def check_valid_line(self, line):
         # check_availability()로 1차 검사
-        # check_availability()로 선분을 그을 수 없는 예외 사항들을 모두 처리할 수 있다고 판단되었습니다. (+check_availability 약간 수정)
+        # check_availability()로 선분을 그을 수 없는 예외 사항들을 모두 처리할 수 있다고 판단되었습니다.
         if not self.check_availability(line):
             return False
-
-        # 그을려고 하는 선이 기존에 존재하는 삼각형과 함께 삼각형을 생성하는지 확인해봐야 합니다.
-        # 만약 그을려고 하는 선이 기존에 존재하는 삼각형과 함께 삼각형을 생성하게 되버린다면, False를 반환해야 할 것입니다
-        new_triangle = LineString(line).intersection(LineString(self.triangles))
-        if not new_triangle.is_empty:
+        
+        #지금 그을려고 하는 선분을 통해서, must_stealed_point() 함수의 return 값의 길이가 1 이상일 경우
+        #즉 그리려고 하는 선분을 통해 삼각형을 이루는 선분 3개 중 2개가 이미 그려지게 만들면
+        #이때는 그으면 안되겠죠. 다음 턴에 상대방이 steal할 테니까요.
+        if self.must_stealed_point(line) >= 1:
             return False
 
-        # 선이 두 개의 기존 선에 연결되어 잠재적인 삼각형이 만들어 지는지 확인해봐야 합니다.
-        # 만약 그을려고 하는 선이 기존에 존재하는 삼각형과 함께 삼각형을 생성하게 되버린다면, False를 반환해야 할 것입니다
-        connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
-        if len(connected_lines) == 2:
-            triangle = LineString(connected_lines[0] + connected_lines[1]).intersection(LineString(line))
-            if not triangle.is_empty:
-                return False
+        #아무런 거 없디면 걍 True를 반환시키죠. check_triangle()에서도 빈 list를 반환하면 random 선택하도록
         return True
 
-    # 해당 함수에서 check_availablity() 대신, check_valid_line() 사용
+    # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
+        #최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available list 구성
         available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
                      self.check_valid_line([point1, point2])]
-        candiate_line = self.check_triangle(available)
-        # print(available)
-        # print(candiate_line)
-        if len(candiate_line) != 0:
-            return random.choice(candiate_line)
-        else:
-            return random.choice(available)
+        
+        #check_triangle에서 얻은 삼각형을 그릴 수 있는 candidate_line들의 list를 저장합니다.
+        #즉, 하나만 더 그으면 삼각형을 만들 수 있는 바로 그 선분들의 list가 candidate_line에 저장됩니다.
+        candidate_line = self.check_triangle(available)
 
+        if len(candidate_line) != 0: #candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
+            #print("하나만 더 그으면 삼각형 획득!")
+            return random.choice(candidate_line) #그들 중에 random 선택
+        elif len(available) != 0: #candidate_line 리스트는 비어 있는데, available 리스트는 비어있지 않다면
+            #print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
+            return random.choice(available)
+        else: #available 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
+            #print("걍 랜덤임!")
+            available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
+                     self.check_availability([point1, point2])] #available list 재할당
+            return random.choice(available)
+        
+    #삼각형을 구성할 수 있는 line 집합을 return 해주는 함수 
+    #즉, 삼각형의 서분 3개 중 2개의 선분이 그어져 있을 때, 한개만 더 그으면 삼각형 되는데, 그 한개만 더 그으면 되는 선분들의 list를 돌려줌
     def check_triangle(self, available):
         avail_triangle = []
         candiate_triangle = []
         prev_triangle = list(combinations(self.drawn_lines, 2))
-        # print("prev :",prev_triangle)
+        
         for lines in prev_triangle:
             dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
             if len(dots_three) == 3:
-                # print("dots_three :",dots_three)
-                # avail_triangle.append([lines[0][0],lines[0][1],lines[1][0],lines[1][1]])
                 if [dots_three[0], dots_three[1]] in available or [dots_three[0], dots_three[2]] in available or [
                     dots_three[1], dots_three[2]] in available or [dots_three[1], dots_three[0]] in available or [
                     dots_three[2], dots_three[0]] in available or [dots_three[2], dots_three[1]] in available:
@@ -117,12 +127,6 @@ class MACHINE():
 
         # Must be a new line
         condition4 = (line not in self.drawn_lines)
-
-        # 삼각형의 3개의 선분 중 2개의 선분이 연결되게 되면, steal 당할 확률이 높아지겠죠. (원래 함수에서 추가 부분)
-        # 그런 상황을 방지하기 위해 애초에 3개의 삼각형 선분들 중 2개의 선분이 연결되면 False(unavailable 의미) 반환
-        connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
-        if len(connected_lines) == 2:
-            return False
 
         if condition1 and condition2 and condition3 and condition4:
             return True
