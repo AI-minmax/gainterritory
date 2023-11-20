@@ -71,7 +71,7 @@ class MACHINE():
             return random.choice(available)
         
     #삼각형을 구성할 수 있는 line 집합을 return 해주는 함수 
-    #즉, 삼각형의 서분 3개 중 2개의 선분이 그어져 있을 때, 한개만 더 그으면 삼각형 되는데, 그 한개만 더 그으면 되는 선분들의 list를 돌려줌
+    #즉, 삼각형의 선분 3개 중 2개의 선분이 그어져 있을 때, 한개만 더 그으면 삼각형 되는데, 그 한개만 더 그으면 되는 선분들의 list를 돌려줌
     def check_triangle(self, available):
         avail_triangle = []
         candiate_triangle = []
