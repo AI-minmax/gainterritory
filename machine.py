@@ -50,25 +50,31 @@ class MACHINE():
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
-        #최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available list 구성
-        available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
+        #최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available_skipWorst list 구성
+        available_skipWorst = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
                      self.check_valid_line([point1, point2])]
+        
+        #선분이 하나도 연결되어 있지 않은 점이 한개도 남아있지 않은 경우 candidate_line을 available_all에서 뽑아야 할 것이므로.. available_all list 하나 더 생성
+        available_all = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
+                     self.check_availability([point1, point2])]
         
         #check_triangle에서 얻은 삼각형을 그릴 수 있는 candidate_line들의 list를 저장합니다.
         #즉, 하나만 더 그으면 삼각형을 만들 수 있는 바로 그 선분들의 list가 candidate_line에 저장됩니다.
-        candidate_line = self.check_triangle(available)
-
+        #available_skipWorst에서 하나만 더 그으면 삼각형을 만들 수 있는 list를 못 찾았다면, available_all에서 찾아야 합니다.
+        candidate_line = self.check_triangle(available_skipWorst)
+        if len(candidate_line) == 0:
+            candidate_line = self.check_triangle(available_all)
+        
         if len(candidate_line) != 0: #candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
-            #print("하나만 더 그으면 삼각형 획득!")
+            #print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
+            #print(candidate_line)
             return random.choice(candidate_line) #그들 중에 random 선택
-        elif len(available) != 0: #candidate_line 리스트는 비어 있는데, available 리스트는 비어있지 않다면
+        elif len(available_skipWorst) != 0: #candidate_line 리스트는 비어 있는데, available_skipWorst 리스트는 비어있지 않다면
             #print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
-            return random.choice(available)
-        else: #available 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
+            return random.choice(available_skipWorst)
+        else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
             #print("걍 랜덤임!")
-            available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
-                     self.check_availability([point1, point2])] #available list 재할당
-            return random.choice(available)
+            return random.choice(available_all)
         
     #삼각형을 구성할 수 있는 line 집합을 return 해주는 함수 
     #즉, 삼각형의 선분 3개 중 2개의 선분이 그어져 있을 때, 한개만 더 그으면 삼각형 되는데, 그 한개만 더 그으면 되는 선분들의 list를 돌려줌
