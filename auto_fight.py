@@ -72,7 +72,7 @@ class Auto_fight():
 
                 for i in range(7):
                     for j in range(7):
-                        if [i, j] in self.whole_points:
+                        if (i, j) in self.whole_points:
                             print(1, end="")
                         else:
                             print(0, end="")
