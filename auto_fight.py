@@ -1,11 +1,12 @@
 import random
 from itertools import combinations, product, chain
-
-from shapely import LineString, Point, Polygon
-
+from shapely import LineString, Point, Polygon, MultiLineString
 from machine import MACHINE
-import pandas as pd
-import os
+import matplotlib.pyplot as plt
+import csv
+from multiprocessing import Pool
+
+debug = True
 
 
 class Auto_fight():
@@ -25,7 +26,6 @@ class Auto_fight():
         self.get_score = False
         self.set_new_board()
         self.initialize_turn()
-
 
     def set_new_board(self):
         self.num_dots = random.randrange(5, 21)
@@ -54,30 +54,17 @@ class Auto_fight():
         if self.check_availability(color, line):
             print(color, " draw ", line)
             self.drawn_lines.append(line)
-
             self.check_triangle(line)
             self.change_turn()
-
             if self.check_endgame():
                 if self.score["RED"] == self.score["BLUE"]:
-                    print("무승부")
-                    # 무승부
+                    return -1
                 else:
                     if self.score["RED"] > self.score["BLUE"]:
-                        # 선공우승
-                        print("선공우승")
+                        return 1
                     else:
-                        print("후공우승")
-                        # 후공우승
-
-                for i in range(7):
-                    for j in range(7):
-                        if (i, j) in self.whole_points:
-                            print(1, end="")
-                        else:
-                            print(0, end="")
-                    print()
-                return "restart"
+                        return 0
+        return len(self.drawn_lines) + 1
 
     def check_availability(self, turn, line):
         line_string = LineString(line)
@@ -144,22 +131,18 @@ class Auto_fight():
                 point1_connected.append(l)
             if point2 in l:
                 point2_connected.append(l)
-
         if point1_connected and point2_connected:  # 최소한 2점 모두 다른 선분과 연결되어 있어야 함
             for line1, line2 in product(point1_connected, point2_connected):
-
                 # Check if it is a triangle & Skip the triangle has occupied
                 triangle = self.organize_points(list(set(chain(*[line, line1, line2]))))
                 if len(triangle) != 3 or triangle in self.triangles:
                     continue
-
                 empty = True
                 for point in self.whole_points:
                     if point in triangle:
                         continue
                     if bool(Polygon(triangle).intersection(Point(point))):
                         empty = False
-
                 if empty:
                     self.triangles.append(triangle)
                     self.score[self.turn] += 1
@@ -169,13 +152,46 @@ class Auto_fight():
         self.turn = "RED"
 
 
-if "__main__" == __name__:
+def fight():
     a = Auto_fight()
-    flag = "go"
+    flag = 2
     turn = "RED"
-    while flag != "restart":
+    result = ""
+    while flag > 1:
         flag = a.machine_go(color=turn)
         if turn == "RED":
             turn = "BLUE"
         else:
             turn = "RED"
+    if debug:
+        for line in a.drawn_lines:
+            multiline = LineString(line)
+            x, y = multiline.xy
+            plt.plot(x, y, 'o-')
+        plt.title('MADE BY LEESEOKJIN')
+        plt.show()
+    else:
+        print(flag, end=" ")
+    if flag == -1:
+        return fight()
+    for i in range(7):
+        for j in range(7):
+            if (i, j) in a.whole_points:
+                result += "1,"
+            else:
+                result += "0,"
+    result += str(flag) + "\n"
+    return result
+
+
+def generating_data(proc_num):
+    filename = f'./learning_data/data_{proc_num}.csv'
+    with open(filename, 'a', newline='') as f:
+        while True:
+            f.write(fight())
+
+
+if "__main__" == __name__:
+    num_processes = 24  # 사용할 프로세스 수
+    with Pool(num_processes) as pool:
+        rows = pool.map(generating_data, range(num_processes))

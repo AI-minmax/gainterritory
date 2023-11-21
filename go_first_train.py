@@ -7,11 +7,13 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import StratifiedKFold
 from xgboost import XGBClassifier
+
 header = []
-for i in range (7):
+proc_num = 0  # 24번까지 존재(컴퓨터 사양에 따라 다름)
+for i in range(7):
     for j in range(7):
-        header.append(str(i)+str(j))
-data = pd.read_csv("DATA.csv", header=["00","01"])
+        header.append(str(i) + str(j))
+data = pd.read_csv(f"learning_data/data_{proc_num}.csv", header=["00", "01"])
 # 전처리 필요함
 
 num_data = len(data)
@@ -19,18 +21,18 @@ X = data[:, :num_data - 1]
 y = data[:, -1]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=14)
-model = XGBClassifier(n_estimators=500, learning_rate=0.2, max_depth=4, random_state = 32)
+model = XGBClassifier(n_estimators=500, learning_rate=0.2, max_depth=4, random_state=32)
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 accuracy_score(y_pred, y_test)
 ########################
-#베이지안 방식으로 정확도를 개선시킬필요 있음
+# 베이지안 방식으로 정확도를 개선시킬필요 있음
 
 bayes_dtrain = xgb.DMatrix(X_train, y_train)
 bayes_dtest = xgb.DMatrix(X_test, y_test)
 
-onehot_encoder=OneHotEncoder()
-encoded_cat_matrix=onehot_encoder.fit_transform(X)
+onehot_encoder = OneHotEncoder()
+encoded_cat_matrix = onehot_encoder.fit_transform(X)
 
 param_bounds = {'max_depth': (4, 8),
                 'subsample': (0.6, 0.9),
@@ -46,7 +48,7 @@ fixed_params = {'objective': 'binary:logistic',
                 'random_state': 1991}
 
 
-#평가지표
+# 평가지표
 def evalfunc(y_true, y_pred):
     pass
 
