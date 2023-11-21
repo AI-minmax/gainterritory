@@ -1,12 +1,12 @@
 import random
+import time
 from itertools import combinations, product, chain
 from shapely import LineString, Point, Polygon, MultiLineString
 from machine import MACHINE
 import matplotlib.pyplot as plt
-import csv
 from multiprocessing import Pool
 
-debug = True
+debug = False
 
 
 class Auto_fight():
@@ -52,7 +52,7 @@ class Auto_fight():
         line = self.organize_points(line)
 
         if self.check_availability(color, line):
-            print(color, " draw ", line)
+            # print(color, " draw ", line)
             self.drawn_lines.append(line)
             self.check_triangle(line)
             self.change_turn()
@@ -186,8 +186,8 @@ def fight():
 
 def generating_data(proc_num):
     filename = f'./learning_data/data_{proc_num}.csv'
-    with open(filename, 'a', newline='') as f:
-        while True:
+    while True:
+        with open(filename, 'a', newline='') as f:
             f.write(fight())
 
 
