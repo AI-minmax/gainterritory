@@ -96,15 +96,16 @@ class MACHINE():
         #중복 제거 후 리스트 반환
         res = list(set(map(tuple, res)))
         res = [list(i) for i in res]
-        res.sort()
         return res
     #민맥스 트리 내에서 사용하는 휴리스틱 함수. 주어진 노드에서 주어진 선분의 대략적인 점수를 반환
     #현재 선분과 선분 사이 연결 중 내가 연결 후 상대가 득점 하더라도 그 직후 바로 득점할 수 있는 선분만 1 리턴. 이외 -1 리턴
-    def evaluation(self, node, val_line, line):
+    def evaluation(self, node, line):
         #이미 존재하는 선분이면 -1
+        line.sort()
         if line in self.drawn_lines or line in node.added_lines:
             return -1
         #유효 선분에 포함되면 1
+        val_line = self.get_valid_line(node)
         if line in val_line:
             return 1
         #이외는 -1 반환
@@ -206,13 +207,12 @@ class MACHINE():
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
                 print("걍 랜덤임!")
 
-                #evaluation 함수 테스트용----- sort 안 하면 오류 발생
+                #evaluation 함수 테스트용
                 self.drawn_lines.sort()
                 node = self.Node(None, self.drawn_lines) #노드 임의로 지정
-                val_line = self.get_valid_line(node)
-                available_all.sort()
+                node.added_lines.sort()
                 for i in available_all:
-                    if self.evaluation(node, val_line, i) > 0 :
+                    if self.evaluation(node, i) > 0 :
                         return i
 
                 self.isRule = False
