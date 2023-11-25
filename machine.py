@@ -124,7 +124,28 @@ class MACHINE():
                 return False
             
             #겹치는 point를 제외한 점들의 좌표(2개가 되겠죠)를 따로 저장한다
-            non_overlapping_points = list(all_points_set_nonDuplicate - {tuple(overlapping_point)})
+            for point in overlapping_point:
+                all_points_set_nonDuplicate.discard(tuple(point))
+
+            non_overlapping_points = list(all_points_set_nonDuplicate)
+
+            #한 직선 위에 있으면서, 삼각형을 내주지 않는 경우에 대한 예외처리를 진행할 것입니다
+            ycnt = 0
+            xcnt = 0
+            isInOneLine = False
+
+            for points in non_overlapping_points:
+                if points[0] == overlapping_point[0][0]:
+                    xcnt = xcnt + 1
+                elif points[1] == overlapping_point[0][1]:
+                    ycnt = ycnt + 1
+
+            #x좌표 혹은 y좌표 count가 2번 이상 세졌을 경우 / x좌표 또는 y좌표가 모두 같은 경우
+            if xcnt == 2 or ycnt == 2:
+                isInOneLine = True
+
+            if len(connected_lines) == 1 & isInOneLine:
+                return False
             
             #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 False return
             for point in self.whole_points:
@@ -266,7 +287,7 @@ def inner_point(point1, point2, point3, point):
                     (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
         b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
                     (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
-    except:
+    except: #예외처리
         return False
     
     c = 1 - a - b
