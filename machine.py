@@ -2,6 +2,8 @@ import random
 from itertools import combinations
 from shapely.geometry import LineString, Point
 
+import matplotlib as plt
+
 class MACHINE():
     """
         [ MACHINE ]
@@ -33,11 +35,34 @@ class MACHINE():
         self.board_size = 7  # 7 x 7 Matrix
         self.num_dots = 0
         self.whole_points = []
+
+        self.available = []
+        self.lastState = []
+        self.lastDrawn = []
+
         self.location = []
         self.triangles = []  # [(a, b), (c, d), (e, f)]
         self.isRule = True
         self.isHeurisitic = True
         self.isMinMax = True
+
+
+    #상태 업데이트
+    #self.available: 
+    def available_update(self):
+        self.lastDrawn = self.drawn_lines - self.lastState
+        self.available = self.available - (self.lastDrawn)
+        self.intersection_check()
+
+    def intersection_check(self):
+        line = self.last_drawn
+        line_string = LineString(self.last_drawn)
+        for l in self.available:
+            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
+                continue
+            elif bool(line_string.intersection(LineString(l))):
+                self.available.remove(l) #available 리스트 요소 삭제 및 update
+
 
     #평가함수. 민맥스트리에서 시간 내에 최적해를 구하지 못했을 때 사용. 당장 만들 수 있는 삼각형이 없다고 가정.
     #직선과 점을 연결하는 경우는 피한다. 직선과 직선을 연결하는 경우, 각 두 점이 서로 연결될 수 있는지, 즉 4개의 선분이 전부 가능한지 확인한다.
@@ -62,7 +87,6 @@ class MACHINE():
         #가능한 선이 없을 시 -1 리턴
         return -1
 
-
     #알파베타 컷오프는 병렬 안됨 / 모듈화 필요
     #상대가 한 번에 2개의 삼각형 득점하는 경우: -무한대 / 우리가 한 번에 2개의 삼각형 득점: +무한대
     #한번에 2개의 삼각형을 얻는 것이 무한대의 이점이라고 우선 가정
@@ -86,21 +110,21 @@ class MACHINE():
         #그런데, 그 선분을 긋고, 삼각형 안을 확인해보니 점이 1개 이상 있다고 하면, 그러면 steal 못하니까, 걍 그어도 상관 없다!
         #connected_lines는 len이 1 이상일 수 있으니까, for문을 돌린다
         for connected_line in connected_lines:
-            all_points_set = set([connected_line[0], connected_line[1], line[0][0], line[0][1]])
+
+            #그냥 all_points_set_withDuplicate
+            all_points_set_withDuplicate = list([connected_line[0], connected_line[1], line[0], line[1]])
+            #중복 제거를 위해 set으로 함
+            all_points_set_nonDuplicate = set([connected_line[0], connected_line[1], line[0], line[1]])
             
-            #겹치는 point를 찾는다 (all_points_set에서 2번 나오는 점 찾는다)
-            overlapping_point = None
-            for point in all_points_set:
-                if list(all_points_set).count(point) == 2:
-                    overlapping_point = point
-                    break
+            #중복된 값 찾기
+            overlapping_point = [item for item in all_points_set_nonDuplicate if all_points_set_withDuplicate.count(item) > 1]
             
-            if overlapping_point is None:
+            if not overlapping_point:
                 # Handle the case when overlapping_point is None (아마 초반에만 이거에 걸러질거임)
                 return False
             
             #겹치는 point를 제외한 점들의 좌표(2개가 되겠죠)를 따로 저장한다
-            non_overlapping_points = list(all_points_set - set([overlapping_point]))
+            non_overlapping_points = list(all_points_set_nonDuplicate - {tuple(overlapping_point)})
             
             #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 False return
             for point in self.whole_points:
@@ -147,26 +171,28 @@ class MACHINE():
                 candidate_line = self.check_triangle(available_all)
             
             if len(candidate_line) != 0: #candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
-                #print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
+                print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
                 #print(candidate_line)
                 return random.choice(candidate_line) #그들 중에 random 선택
             elif len(available_skipWorst) != 0: #candidate_line 리스트는 비어 있는데, available_skipWorst 리스트는 비어있지 않다면
-                #print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
+                print("[available_skipworst]")
+                print(available_skipWorst)
+                print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
                 return random.choice(available_skipWorst)
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
-                #print("걍 랜덤임!")
+                print("걍 랜덤임!")
                 eval_line = self.evaluation()
                 if eval_line != -1:
                     return eval_line
+                
                 self.isRule = False
                 return random.choice(available_all)
         
-        elif self.isHeurisitic:
-
-        elif self.isMinMax:
-
-
+        # elif self.isHeurisitic:
+        #     #휴리스틱을 사용할 것임
         
+        # elif self.isMinMax:
+        #     #minmax 알고리즘을 사용할 것임
         
         
     #삼각형을 구성할 수 있는 line 집합을 return 해주는 함수 
@@ -235,10 +261,14 @@ class MACHINE():
 
 
 def inner_point(point1, point2, point3, point):
-    a = ((point2[1] - point3[1]) * (point[0] - point3[0]) + (point3[0] - point2[0]) * (point[1] - point3[1])) / (
-                (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
-    b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
-                (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
+    try:
+        a = ((point2[1] - point3[1]) * (point[0] - point3[0]) + (point3[0] - point2[0]) * (point[1] - point3[1])) / (
+                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
+        b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
+                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
+    except:
+        return False
+    
     c = 1 - a - b
     if a > 0 and b > 0 and c > 0:
         return True
