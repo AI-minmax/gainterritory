@@ -2,7 +2,6 @@ import random
 from itertools import combinations
 from shapely.geometry import LineString, Point
 
-
 class MACHINE():
     """
         [ MACHINE ]
@@ -16,6 +15,17 @@ class MACHINE():
                * Line: [(x1, y1), (x2, y2)] -> MACHINE class에서는 x값이 작은 점이 항상 왼쪽에 위치할 필요는 없음 (System이 organize 함)
     """
 
+    #내가 득점하면 +1, 상대 득점 -1 (score)
+    #현재 상황에서 추가되는 lines: added_lines
+    #player에 대한 정보는 따로 필요 없을 것으로 판단'
+    #added_lines에는.. available line 추가 / 부모 단에서 available 검증해서 자식에게 보낼 것임
+    #민맥스는 후반에 쓸 것인데, avaialble 숫자가 적고, whole_points 다 검사하면.. 속도 너무 느림
+    class Node:
+        def __init__(self, score, added_lines):
+            self.score = score
+            self.added_lines = added_lines
+            self.children = []
+
     def __init__(self, score=[0, 0], drawn_lines=[], whole_lines=[], whole_points=[], location=[]):
         self.id = "MACHINE"
         self.score = [0, 0]  # USER, MACHINE
@@ -26,11 +36,59 @@ class MACHINE():
         self.location = []
         self.triangles = []  # [(a, b), (c, d), (e, f)]
 
+    #평가함수. 민맥스트리에서 시간 내에 최적해를 구하지 못했을 때 사용. 당장 만들 수 있는 삼각형이 없다고 가정.
+    #직선과 점을 연결하는 경우는 피한다. 직선과 직선을 연결하는 경우, 각 두 점이 서로 연결될 수 있는지, 즉 4개의 선분이 전부 가능한지 확인한다.
+    def evaluation(self):
+        #이미 그려져있는 선분 중 2개씩 선택
+        pair_list = list(combinations(self.drawn_lines, 2))
+        for pair in pair_list:
+            #두 선분의 점의 수를 세고 4개가 아니면, 즉 각각 떨어져 있는 선분이 아니면 진행하지 않음
+            dot_cnt = list(set([pair[0][0], pair[0][1], pair[1][0], pair[1][1]]))
+            if len(dot_cnt) == 4:
+                #4개의 점으로 그릴 수 있는 선분 6개 중 이미 그려진 2개의 선분 제외 후 4개의 선분을 전부 그릴 수 있는지 판단
+                lines = [[pair[0][0], pair[1][0]], [pair[0][0], pair[1][1]], [pair[0][1], pair[1][0]], [pair[0][1], pair[1][1]]]
+                #4개의 선분 중 하나라도 그릴 수 없으면 falg가 False가 되고 다음 후보로 진행
+                flag = True
+                for i in lines:
+                    if self.check_availability(i) == False:
+                        flag = False
+                    #print("i :", i, "flag :", flag)
+                #flag가 True일 시 네 선분 다 그릴 수 있는 선분임. 이중 하나 리턴
+                if flag:
+                    return list(lines[0])
+        #가능한 선이 없을 시 -1 리턴
+        return -1
+
+
+    #알파베타 컷오프는 병렬 안됨 / 모듈화 필요
+    #상대가 한 번에 2개의 삼각형 득점하는 경우: -무한대 / 우리가 한 번에 2개의 삼각형 득점: +무한대
+    #한번에 2개의 삼각형을 얻는 것이 무한대의 이점이라고 우선 가정
+    #더 이상 트리를 확장하지 않는 것으로 탐색해야 하는 범위를 축소
+    #자료구조는 무엇으로? ->
+    # def min_max(self):
+        
+
     #삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
     #해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
-    def must_stealed_point(self, line):
+    #avaiablae에서 한 선분을 뽑는다면, 선분에 양쪽 끝에 점이 있지 / 그 점에 연결된 선분들을 check를 해서 양쪽 점이 공통으로 가지고 있는 점이 일치하는 점이 있는지 확인 / 그 선분을 추가했을 때, check_triangle() 해서 True 반환하면, must_stealed_point()에서 True 반환
+    def check_stealing_situation(self, line):
         connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
+
+        #애초에 점이 겹치는 게 없으면 훔칠 기회가 없다
+        if len(connected_lines) < 1:
+            return 0
+
+        #점이 겹치는 경우에도 삼각형 내부에 점이 1개 이상 있는 예외 경우는 생각해야 하므로 해당 경우에 대해서 추가 분석
+        dots_three = list(set([connected_lines[0][0], connected_lines[0][1], line[0][0], line[0][1]]))
+
+        #
+        if len(dots_three) == 3:
+
+
+
+
         return len(connected_lines)
+
 
     # 유효한 선분인지 검사하는 함수 check_valid_line() (+상대방에게 steal 당하지 않도록 하는 최소한의 알고리즘 적용)
     def check_valid_line(self, line):
@@ -51,6 +109,7 @@ class MACHINE():
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
         #최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available_skipWorst list 구성
+        #삼각형 내부에 점이 있으면 예외상황이 발생해서 로직 수정이 필요할 것으로 보임
         available_skipWorst = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
                      self.check_valid_line([point1, point2])]
         
@@ -74,6 +133,9 @@ class MACHINE():
             return random.choice(available_skipWorst)
         else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
             #print("걍 랜덤임!")
+            eval_line = self.evaluation()
+            if eval_line != -1:
+                return eval_line
             return random.choice(available_all)
         
     #삼각형을 구성할 수 있는 line 집합을 return 해주는 함수 
@@ -107,6 +169,7 @@ class MACHINE():
                         elif [dots_three[2], dots_three[1]] in available:
                             candiate_triangle.append([dots_three[1], dots_three[2]])
         return candiate_triangle
+    
 
     def check_availability(self, line):
         line_string = LineString(line)
