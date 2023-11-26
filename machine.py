@@ -132,14 +132,16 @@ class MACHINE():
             #3개의 점으로 삼각형을 만들 수 있는 경우에만 내부에 점이 있는지 판명하면 된다
             #3개의 점으로 삼각형을 안 만든다면 그냥 넘긴다(continue)
             if is_triangle(overlapping_point, non_overlapping_points[0], non_overlapping_points[1]):
+
                 #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 그 경우는 삼각형으로 인정 안된다
                 for point in self.whole_points:
                     #point가 그으려는(혹은 이미 그어진) 선분에 포함되는 3개의 점이라면 검사할 필요가 없다
                     if point == overlapping_point or point == non_overlapping_points[0] or point == non_overlapping_points[1]:
                         continue
-                    #inner_point 함수로 3개의 점을 기준으로 이루어진 삼각형 내부에 whole_points에 포함되는 점이 있는 지 확인 가능
+                    #inner_point_usingInStealChecking 함수로 3개의 점을 기준으로 이루어진 삼각형 내부에 whole_points에 포함되는 점이 있는 지 확인 가능
+                    #일직선 상에 있는 점도 판명 가능(예외처리를 위함)
                     #다음 connected_line과의 확인을 위해 continue
-                    elif inner_point(overlapping_point, non_overlapping_points[0], non_overlapping_points[1], point):
+                    elif inner_point_usingInStealChecking(overlapping_point, non_overlapping_points[0], non_overlapping_points[1], point):
                         break
                     else: #inner_point에서 내부에 점이 없다는 것이 판명되면
                         isDangerous = True #실점할 수 있는 위험한 상황으로 판명
@@ -201,7 +203,7 @@ class MACHINE():
                 if eval_line != -1:
                     return eval_line
                 
-                self.isRule = False
+                # self.isRule = False
                 return random.choice(available_all)
         
         # elif self.isHeurisitic:
@@ -300,17 +302,31 @@ def inner_point(point1, point2, point3, point):
         return True
     else:
         return False
-    
-#3개의 꼭짓점 정보를 받아서 이것이 삼각형이 되는지 판명하는 함수
-#이 함수는, 3개의 점이 일직선상에 있는지도 판명한다 (일직선상에 있으면 false 반환)
-def is_triangle(point1, point2, point3):
-    #선분의 길이를 비교해서, 그것으로 삼각형이 되는지 아닌지를 판명한다
-    side1 = ((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)**0.5
-    side2 = ((point2[0] - point3[0])**2 + (point2[1] - point3[1])**2)**0.5
-    side3 = ((point3[0] - point1[0])**2 + (point3[1] - point1[1])**2)**0.5
 
-    #삼각형의 선분 길이 조건을 만족하면 True, 아니면 False 반환
-    if (side1 + side2 > side3) and (side2 + side3 > side1) and (side3 + side1 > side2):
+#inner_point 그대로 가져다 쓰면, check_triangle에서 오류를 범할 수 있으므로, 등호를 추가한 버전은 따로 만들었습니다
+def inner_point_usingInStealChecking(point1, point2, point3, point):
+    try:
+        a=((point2[1]-point3[1])*(point[0]-point3[0])+(point3[0]-point2[0])*(point[1]-point3[1]))/((point2[1]-point3[1])*(point1[0]-point3[0])+(point3[0]-point2[0])*(point1[1]-point3[1]))
+        b=((point3[1]-point1[1])*(point[0]-point3[0])+(point1[0]-point3[0])*(point[1]-point3[1]))/((point2[1]-point3[1])*(point1[0]-point3[0])+(point3[0]-point2[0])*(point1[1]-point3[1]))
+    except:
+        return False
+    c=1-a-b
+
+    if 0 <= a <= 1 and 0 <= b <= 1 and 0 <= c <= 1:
         return True
     else:
         return False
+    
+#3개의 꼭짓점 정보를 받아서 이것이 삼각형이 되는지 판명하는 함수
+#이 함수는, 3개의 점이 일직선상에 있는지도 판명한다 (일직선상에 있으면 false 반환)
+def is_triangle(p1, p2, p3):
+    try:
+        if abs((p1[1]-p2[1])/(p1[0]-p2[0])) == abs((p3[1]-p2[1])/(p3[0]-p2[0])): #기울기가 같은가
+            return False
+        else:
+            return True
+    except:
+        if p1[0] == p2[0] and p1[0] == p3[0]:
+            return False
+        else:
+            return True
