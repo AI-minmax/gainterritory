@@ -93,17 +93,19 @@ class MACHINE():
     #더 이상 트리를 확장하지 않는 것으로 탐색해야 하는 범위를 축소
     #자료구조는 무엇으로? ->
     # def min_max(self):
-        
 
     #삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
     #해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
-    #avaiablae에서 한 선분을 뽑는다면, 선분에 양쪽 끝에 점이 있지 / 그 점에 연결된 선분들을 check를 해서 양쪽 점이 공통으로 가지고 있는 점이 일치하는 점이 있는지 확인 / 그 선분을 추가했을 때, check_triangle() 해서 True 반환하면, must_stealed_point()에서 True 반환
+    #available에서 한 선분을 뽑는다면, 선분에 양쪽 끝에 점이 있지 / 그 점에 연결된 선분들을 check를 해서 양쪽 점이 공통으로 가지고 있는 점이 일치하는 점이 있는지 확인 / 그 선분을 추가했을 때, check_triangle() 해서 True 반환하면, must_stealed_point()에서 True 반환
     def check_stealing_situation_inOpponentTurn(self, line):
         connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
 
         #애초에 점이 겹치는 게 없으면 훔칠 기회가 없다
         if len(connected_lines) < 1:
             return False
+
+        #삼각형을 뺏길 수 있는 상황이 1번이라도 연출되면 아래 isDangerous 값은 True로 바뀔 것이다
+        isDangerous = False
 
         #위에서 1보다 크거나 같게 나오면 삼각형의 3개의 선분 중 2개의 선분이 연결되는 경우이므로 중복되는 점(두 선분이 겹치는 점)을 제외한 점들의 값을 알아내야 한다
         #그 2개의 점의 좌표는 상대방 턴에 그을 선분의 양 끝 점의 좌표이다(steal 할 수 있는 경우라고 볼 수 있지)
@@ -116,44 +118,40 @@ class MACHINE():
             #중복 제거를 위해 set으로 함
             all_points_set_nonDuplicate = set([connected_line[0], connected_line[1], line[0], line[1]])
             
-            #중복된 값 찾기
-            overlapping_point = [item for item in all_points_set_nonDuplicate if all_points_set_withDuplicate.count(item) > 1]
+            #중복된 값 찾기 (tuple을 넘겨줄 것임)
+            overlapping_point = [item for item in all_points_set_nonDuplicate if all_points_set_withDuplicate.count(item) > 1][0]
             
             if not overlapping_point:
                 # Handle the case when overlapping_point is None (아마 초반에만 이거에 걸러질거임)
                 return False
             
-            #겹치는 point를 제외한 점들의 좌표(2개가 되겠죠)를 따로 저장한다
-            for point in overlapping_point:
-                all_points_set_nonDuplicate.discard(tuple(point))
-
+            #겹치는 point를 제외한 점들의 좌표(2개가 되겠죠)를 따로 저장한다 (overlapping_point는 1개만 나오는 것이 정상이므로, for문 돌릴 필요가 없습니다)
+            all_points_set_nonDuplicate.discard(overlapping_point)
             non_overlapping_points = list(all_points_set_nonDuplicate)
 
-            #한 직선 위에 있으면서, 삼각형을 내주지 않는 경우에 대한 예외처리를 진행할 것입니다
-            ycnt = 0
-            xcnt = 0
-            isInOneLine = False
+            #3개의 점으로 삼각형을 만들 수 있는 경우에만 내부에 점이 있는지 판명하면 된다
+            #3개의 점으로 삼각형을 안 만든다면 그냥 넘긴다(continue)
+            if is_triangle(overlapping_point, non_overlapping_points[0], non_overlapping_points[1]):
+                #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 그 경우는 삼각형으로 인정 안된다
+                for point in self.whole_points:
+                    #point가 그으려는(혹은 이미 그어진) 선분에 포함되는 3개의 점이라면 검사할 필요가 없다
+                    if point == overlapping_point or point == non_overlapping_points[0] or point == non_overlapping_points[1]:
+                        continue
+                    #inner_point 함수로 3개의 점을 기준으로 이루어진 삼각형 내부에 whole_points에 포함되는 점이 있는 지 확인 가능
+                    #다음 connected_line과의 확인을 위해 continue
+                    elif inner_point(overlapping_point, non_overlapping_points[0], non_overlapping_points[1], point):
+                        break
+                    else: #inner_point에서 내부에 점이 없다는 것이 판명되면
+                        isDangerous = True #실점할 수 있는 위험한 상황으로 판명
+            else:
+                continue
 
-            for points in non_overlapping_points:
-                if points[0] == overlapping_point[0][0]:
-                    xcnt = xcnt + 1
-                elif points[1] == overlapping_point[0][1]:
-                    ycnt = ycnt + 1
-
-            #x좌표 혹은 y좌표 count가 2번 이상 세졌을 경우 / x좌표 또는 y좌표가 모두 같은 경우
-            if xcnt == 2 or ycnt == 2:
-                isInOneLine = True
-
-            if len(connected_lines) == 1 & isInOneLine:
-                return False
-            
-            #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 False return
-            for point in self.whole_points:
-                #inner_point 함수로 3개의 점을 기준으로 이루어진 삼각형 내부에 whole_points에 포함되는 점이 있는 지 확인 가능
-                if inner_point(overlapping_point, non_overlapping_points[0], non_overlapping_points[1], point):
-                    return False
-
-        return True
+        #삼각형을 상대방에게 뺏기는 상황이 한번이라도 발생했다면, isDangerous는 True를 반환했을 것이다
+        #그것을 확인하고, 값이 일치하면 False 반환, 아니면 최종적으로 True 반환
+        if isDangerous == False:
+            return False
+        else:                
+            return True
 
 
     # 유효한 선분인지 검사하는 함수 check_valid_line() (+상대방에게 steal 당하지 않도록 하는 최소한의 알고리즘 적용)
@@ -192,16 +190,13 @@ class MACHINE():
                 candidate_line = self.check_triangle(available_all)
             
             if len(candidate_line) != 0: #candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
-                print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
-                #print(candidate_line)
+                # print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
                 return random.choice(candidate_line) #그들 중에 random 선택
             elif len(available_skipWorst) != 0: #candidate_line 리스트는 비어 있는데, available_skipWorst 리스트는 비어있지 않다면
-                print("[available_skipworst]")
-                print(available_skipWorst)
-                print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
+                # print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
                 return random.choice(available_skipWorst)
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
-                print("걍 랜덤임!")
+                # print("걍 랜덤임!")
                 eval_line = self.evaluation()
                 if eval_line != -1:
                     return eval_line
@@ -222,30 +217,43 @@ class MACHINE():
         avail_triangle = []
         candiate_triangle = []
         prev_triangle = list(combinations(self.drawn_lines, 2))
-        
+        for lines in prev_triangle[:]:
+            dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
+            if len(dots_three) != 3:
+                prev_triangle.remove(lines)
         for lines in prev_triangle:
             dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
-            if len(dots_three) == 3:
-                if [dots_three[0], dots_three[1]] in available or [dots_three[0], dots_three[2]] in available or [
-                    dots_three[1], dots_three[2]] in available or [dots_three[1], dots_three[0]] in available or [
-                    dots_three[2], dots_three[0]] in available or [dots_three[2], dots_three[1]] in available:
-                    flag = True
-                    for p in self.whole_points:
-                        if inner_point(dots_three[0], dots_three[1], dots_three[2], p):
-                            flag = False
-                    if flag:
-                        if [dots_three[0], dots_three[1]] in available:
-                            candiate_triangle.append([dots_three[0], dots_three[1]])
-                        elif [dots_three[0], dots_three[2]] in available:
-                            candiate_triangle.append([dots_three[0], dots_three[2]])
-                        elif [dots_three[1], dots_three[2]] in available:
-                            candiate_triangle.append([dots_three[1], dots_three[2]])
-                        elif [dots_three[1], dots_three[0]] in available:
-                            candiate_triangle.append([dots_three[1], dots_three[0]])
-                        elif [dots_three[2], dots_three[0]] in available:
-                            candiate_triangle.append([dots_three[2], dots_three[0]])
-                        elif [dots_three[2], dots_three[1]] in available:
-                            candiate_triangle.append([dots_three[1], dots_three[2]])
+            bitFlag=0
+            if [dots_three[0], dots_three[1]] in available:
+                bitFlag=bitFlag|(1<<0)
+            if [dots_three[0], dots_three[2]] in available:
+                bitFlag=bitFlag|(1<<1)
+            if [dots_three[1], dots_three[2]] in available:
+                bitFlag=bitFlag|(1<<2)
+            if [dots_three[1], dots_three[0]] in available:
+                bitFlag=bitFlag|(1<<3)
+            if [dots_three[2], dots_three[0]] in available:
+                bitFlag=bitFlag|(1<<4)
+            if [dots_three[2], dots_three[1]] in available:
+                bitFlag=bitFlag|(1<<5)
+            if bitFlag!=0:
+                flag = True
+                for p in self.whole_points:
+                    if inner_point(dots_three[0], dots_three[1], dots_three[2], p):
+                        flag = False
+                if flag:
+                    if bitFlag&(1<<0):
+                        candiate_triangle.append([dots_three[0], dots_three[1]])
+                    elif bitFlag&(1<<1):
+                        candiate_triangle.append([dots_three[0], dots_three[2]])
+                    elif bitFlag&(1<<2):
+                        candiate_triangle.append([dots_three[1], dots_three[2]])
+                    elif bitFlag&(1<<3):
+                        candiate_triangle.append([dots_three[1], dots_three[0]])
+                    elif bitFlag&(1<<4):
+                        candiate_triangle.append([dots_three[2], dots_three[0]])
+                    elif bitFlag&(1<<5):
+                        candiate_triangle.append([dots_three[1], dots_three[2]])
         return candiate_triangle
     
 
@@ -283,15 +291,26 @@ class MACHINE():
 
 def inner_point(point1, point2, point3, point):
     try:
-        a = ((point2[1] - point3[1]) * (point[0] - point3[0]) + (point3[0] - point2[0]) * (point[1] - point3[1])) / (
-                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
-        b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
-                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
-    except: #예외처리
+        a=((point2[1]-point3[1])*(point[0]-point3[0])+(point3[0]-point2[0])*(point[1]-point3[1]))/((point2[1]-point3[1])*(point1[0]-point3[0])+(point3[0]-point2[0])*(point1[1]-point3[1]))
+        b=((point3[1]-point1[1])*(point[0]-point3[0])+(point1[0]-point3[0])*(point[1]-point3[1]))/((point2[1]-point3[1])*(point1[0]-point3[0])+(point3[0]-point2[0])*(point1[1]-point3[1]))
+    except:
+        return False
+    c=1-a-b
+    if a>0 and b>0 and c>0:
+        return True
+    else:
         return False
     
-    c = 1 - a - b
-    if a > 0 and b > 0 and c > 0:
+#3개의 꼭짓점 정보를 받아서 이것이 삼각형이 되는지 판명하는 함수
+#이 함수는, 3개의 점이 일직선상에 있는지도 판명한다 (일직선상에 있으면 false 반환)
+def is_triangle(point1, point2, point3):
+    #선분의 길이를 비교해서, 그것으로 삼각형이 되는지 아닌지를 판명한다
+    side1 = ((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)**0.5
+    side2 = ((point2[0] - point3[0])**2 + (point2[1] - point3[1])**2)**0.5
+    side3 = ((point3[0] - point1[0])**2 + (point3[1] - point1[1])**2)**0.5
+
+    #삼각형의 선분 길이 조건을 만족하면 True, 아니면 False 반환
+    if (side1 + side2 > side3) and (side2 + side3 > side1) and (side3 + side1 > side2):
         return True
     else:
         return False
