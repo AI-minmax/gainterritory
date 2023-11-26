@@ -6,7 +6,7 @@ from machine import MACHINE
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 
-debug = False
+debug = True
 
 
 class Auto_fight():
@@ -168,6 +168,7 @@ def fight():
             multiline = LineString(line)
             x, y = multiline.xy
             plt.plot(x, y, 'o-')
+            plt.show()
         plt.title('MADE BY LEESEOKJIN')
         plt.show()
     else:
@@ -192,6 +193,6 @@ def generating_data(proc_num):
 
 
 if "__main__" == __name__:
-    num_processes = 24  # 사용할 프로세스 수
+    num_processes = 1  # 사용할 프로세스 수
     with Pool(num_processes) as pool:
         rows = pool.map(generating_data, range(num_processes))
