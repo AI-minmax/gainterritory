@@ -131,7 +131,8 @@ class MACHINE():
 
             #3개의 점으로 삼각형을 만들 수 있는 경우에만 내부에 점이 있는지 판명하면 된다
             #3개의 점으로 삼각형을 안 만든다면 그냥 넘긴다(continue)
-            if is_triangle(overlapping_point, non_overlapping_points[0], non_overlapping_points[1]):
+            #삼각형을 만드는 조건은 맞지만, self.check_availability를 통해, 상대방이 긋는 선이 유효하기까지 해야 아래의 조건들을 확인하는 게 의미가 있다
+            if is_triangle(overlapping_point, non_overlapping_points[0], non_overlapping_points[1]) and self.check_availability([non_overlapping_points[0],non_overlapping_points[1]]):
 
                 #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 그 경우는 삼각형으로 인정 안된다
                 for point in self.whole_points:
