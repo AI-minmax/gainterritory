@@ -35,10 +35,13 @@ class MACHINE():
             return random.choice(available)
 
     def check_triangle(self, available):
-        avail_triangle=[]
-        candiate_triangle=[]
-        prev_triangle=list(combinations(self.drawn_lines,2))
-        #print("prev :",prev_triangle)
+        avail_triangle = []
+        candiate_triangle = []
+        prev_triangle = list(combinations(self.drawn_lines, 2))
+        for lines in prev_triangle[:]:
+            dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
+            if len(dots_three) != 3:
+                prev_triangle.remove(lines)
         for lines in prev_triangle:
             dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
             bitFlag=0
