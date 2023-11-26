@@ -133,7 +133,6 @@ class MACHINE():
             #3개의 점으로 삼각형을 안 만든다면 그냥 넘긴다(continue)
             #삼각형을 만드는 조건은 맞지만, self.check_availability를 통해, 상대방이 긋는 선이 유효하기까지 해야 아래의 조건들을 확인하는 게 의미가 있다
             if is_triangle(overlapping_point, non_overlapping_points[0], non_overlapping_points[1]) and self.check_availability([non_overlapping_points[0],non_overlapping_points[1]]):
-
                 #만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 그 경우는 삼각형으로 인정 안된다
                 for point in self.whole_points:
                     #point가 그으려는(혹은 이미 그어진) 선분에 포함되는 3개의 점이라면 검사할 필요가 없다
@@ -153,7 +152,7 @@ class MACHINE():
         #그것을 확인하고, 값이 일치하면 False 반환, 아니면 최종적으로 True 반환
         if isDangerous == False:
             return False
-        else:                
+        else:             
             return True
 
 
@@ -193,13 +192,14 @@ class MACHINE():
                 candidate_line = self.check_triangle(available_all)
             
             if len(candidate_line) != 0: #candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
-                # print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
+                print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
                 return random.choice(candidate_line) #그들 중에 random 선택
             elif len(available_skipWorst) != 0: #candidate_line 리스트는 비어 있는데, available_skipWorst 리스트는 비어있지 않다면
-                # print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
+                print(available_skipWorst)
+                print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
                 return random.choice(available_skipWorst)
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
-                # print("걍 랜덤임!")
+                print("걍 랜덤임!")
                 eval_line = self.evaluation()
                 if eval_line != -1:
                     return eval_line
@@ -322,12 +322,13 @@ def inner_point_usingInStealChecking(point1, point2, point3, point):
 #이 함수는, 3개의 점이 일직선상에 있는지도 판명한다 (일직선상에 있으면 false 반환)
 def is_triangle(p1, p2, p3):
     try:
-        if abs((p1[1]-p2[1])/(p1[0]-p2[0])) == abs((p3[1]-p2[1])/(p3[0]-p2[0])): #기울기가 같은가
-            return False
-        else:
-            return True
+        slope1 = (p1[1] - p2[1]) / (p1[0] - p2[0])
+        slope2 = (p3[1] - p2[1]) / (p3[0] - p2[0])
+
+        return slope1 != slope2
+    except ZeroDivisionError:
+        # Handle the case where the denominator is zero (vertical line)
+        return True
     except:
-        if p1[0] == p2[0] and p1[0] == p3[0]:
-            return False
-        else:
-            return True
+        # Handle other exceptions, e.g., if two points are the same
+        return False
