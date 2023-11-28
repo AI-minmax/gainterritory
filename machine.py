@@ -63,7 +63,8 @@ class MACHINE():
                 self.available.remove(l) #available 리스트 요소 삭제 및 update
 
     #선분과 선분 사이의 선분 중 이로울 확률이 높은 선분 리스트 반환
-    def get_valid_line(self, node):
+    #각 노드에서 evaluation을 하기 전에 한 번 실행해 주어야 함.
+    def get_lines_between_lines(self, node):
         #전체 선분 병합 후 중복 제거
         all_line = node.added_lines + self.drawn_lines
         all_line = list(set(map(tuple, all_line)))
@@ -92,21 +93,66 @@ class MACHINE():
                         break
                 #flag가 True일 시 네 선분 다 이로울 확률이 높은 선분. res에 추가
                 if flag:
+                    lines.sort()
                     res += lines
         #중복 제거 후 리스트 반환
         res = list(set(map(tuple, res)))
         res = [list(i) for i in res]
         return res
-    #민맥스 트리 내에서 사용하는 휴리스틱 함수. 주어진 노드에서 주어진 선분의 대략적인 점수를 반환
-    #현재 선분과 선분 사이 연결 중 내가 연결 후 상대가 득점 하더라도 그 직후 바로 득점할 수 있는 선분만 1 리턴. 이외 -1 리턴
-    def evaluation(self, node, line):
+    
+    #삼각형 내에 점이 하나 있을 때, 처음으로 그 점에 그리는 선분들을 반환
+    def get_lines_in_triangle(self, node):
+        all_line = node.added_lines + self.drawn_lines
+        all_line = list(set(map(tuple, all_line)))
+        all_line = [list(i) for i in all_line]
+        res = []
+        #선분 하나와 점 하나를 통해 삼각형이 이미 만들어져 있는지, 삼각형 내에 점이 하나 있는지, 점이 하나 있을 때 선분이 하나도 없는지 비교 후 모두 만족하면 세 선분을 res에 추가
+        for line in all_line:
+            for dot in self.whole_points:
+                if dot in line:
+                    continue
+                if ([dot, line[0]] not in all_line and [line[0], dot] not in all_line) or ([dot, line[1]] not in all_line and [line[1], dot] not in all_line):
+                    continue
+                cnt = 0
+                only_dot = None
+                for inner_dot in self.whole_points:
+                    if inner_dot==dot or inner_dot in line:
+                        continue
+                    if inner_point(dot, line[0], line[1], inner_dot):
+                        cnt += 1
+                        only_dot = inner_dot
+                if cnt != 1:
+                    continue
+                flag = False
+                dots = line + [dot]
+                lines = []
+                for i in dots:
+                    tmp = [only_dot, i]
+                    tmp.sort()
+                    lines += [tmp]
+                    if tmp in all_line:
+                        flag = True
+                        break
+                if not flag:
+                    res += lines
+        res = list(set(map(tuple, res)))
+        res = [list(i) for i in res]
+        return res
+    
+    #두 선분 리스트를 각 노드에서 미리 구한 뒤 evaluation 함수에 매개변수로 넣어주어야 함
+    #lines_bt : get_lines_between_lines()으로 구한 선분 리스트
+    #lines_tri : get_lines_triangle()으로 구한 선분 리스트
+    #각 선분 리스트 내에 line이 존재하는지 비교 후 반환
+    def evaluation(self, node, lines_bt, lines_tri, line):
         #이미 존재하는 선분이면 -1
         line.sort()
         if line in self.drawn_lines or line in node.added_lines:
             return -1
-        #유효 선분에 포함되면 1
-        val_line = self.get_valid_line(node)
-        if line in val_line:
+        #선분 사이 선분 중 이로운 선분들 리스트에 선분이 있을 때
+        if line in lines_bt:
+            return 1
+        #삼각형 안에 점이 하나 있을 때 최초로 그리는 선분이면
+        if line in lines_tri:
             return 1
         #이외는 -1 반환
         return -1
@@ -196,26 +242,26 @@ class MACHINE():
                 candidate_line = self.check_triangle(available_all)
             
             if len(candidate_line) != 0: #candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
-                print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
+                #print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
                 #print(candidate_line)
                 return random.choice(candidate_line) #그들 중에 random 선택
             elif len(available_skipWorst) != 0: #candidate_line 리스트는 비어 있는데, available_skipWorst 리스트는 비어있지 않다면
-                print("[available_skipworst]")
-                print(available_skipWorst)
-                print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
+                #print("[available_skipworst]")
+                #print(available_skipWorst)
+                #print("그런 선분은 없지만, 최악의 상황은 면할 수 있는 방도는 있음!")
                 return random.choice(available_skipWorst)
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
-                print("걍 랜덤임!")
+                #print("걍 랜덤임!")
 
                 #evaluation 함수 테스트용
-                self.drawn_lines.sort()
                 node = self.Node(None, self.drawn_lines) #노드 임의로 지정
-                node.added_lines.sort()
+                lines_bt = self.get_lines_between_lines(node)
+                lines_tri = self.get_lines_in_triangle(node)
                 for i in available_all:
-                    if self.evaluation(node, i) > 0 :
+                    if self.evaluation(node, lines_bt, lines_tri , i) > 0 :
                         return i
 
-                self.isRule = False
+                #self.isRule = False
                 return random.choice(available_all)
         
         # elif self.isHeurisitic:
