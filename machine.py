@@ -324,14 +324,18 @@ def is_triangle(p1, p2, p3):
         # Handle other exceptions, e.g., if two points are the same
         return False
 
-# 선위에 짐이 존재하는경우 라인은 어베일러블에서 거르고 홀 라인에서 제외할것
+# 선위에 점이 존재하는경우 라인은 available에서 거르고 whole_line에서 제외할것
 # 삼각형 만들수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
+# whole_line: 현재 그려진 선 / whole_points: 현재 있는 모든 점
 def check_triangle(line, whole_line, whole_points):
+    lines = whole_line.copy()
+    lines.remove(line)
     point1 = line[0]
     point2 = line[1]
     point1_connected = []
     point2_connected = []
-    for l in whole_line:
+    
+    for l in lines:
         if point1 in l:
             point1_connected.append(l)
         if point2 in l:
@@ -369,13 +373,13 @@ class Node():
 
         if parent is not None:
             self.added_line = added_line #추가한 line (이번 turn에 그릴 line)
-            self.total_lines = parent.total_lines
+            self.total_lines = parent.total_lines + self.added_line 
             self.whole_points = parent.whole_points
             self.isOpponentTurn = not parent.isOpponentTurn
-            if self.isOpponentTurn:
-                self.score = parent.score + check_triangle(added_line,self.total_lines,self.whole_points)
-            else:
-                self.score = parent.score - check_triangle(added_line,self.total_lines,self.whole_points)
+            if self.isOpponentTurn: #지금이 상대방 turn(minimize-player)인 경우 (added_line는 부모에서 그은 것임)
+                self.score = parent.score + check_triangle(added_line, self.total_lines, self.whole_points)
+            else: #지금이 내 turn(maximize-player)인 경우
+                self.score = parent.score - check_triangle(added_line, self.total_lines, self.whole_points)
             self.available = available_update(parent.available, added_line)
         else: #루트노드
             self.score = 0
