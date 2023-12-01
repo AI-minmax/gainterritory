@@ -182,8 +182,12 @@ class MACHINE():
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
                 print("걍 랜덤임!")
                 root = Node()
-                root.available = self.available
-                child_score, _ = root.expand_node(6, '-inf', 'inf')
+                root.available = available_all
+                root.total_lines = self.drawn_lines
+                root.whole_points = self.whole_points
+                child_score, _ = root.expand_node(4, '-inf', 'inf')
+                print(child_score, _)
+                return _
                 # eval_line = self.evaluation()
                 # if eval_line != -1:
                 #     return eval_line
@@ -276,7 +280,8 @@ class MACHINE():
             return False
 
 def available_update(available, lastDrawn):
-    available = available - lastDrawn
+    available = available.copy()
+    available.remove(lastDrawn)
     line_string = LineString(lastDrawn)
     for l in available:
         if len(list({lastDrawn[0], lastDrawn[1], l[0], l[1]})) == 3:
@@ -341,8 +346,12 @@ def check_triangle(line, whole_line, whole_points):
     third_point = []
     if point1_connected and point2_connected:  # 최소한 2점 모두 다른 선분과 연결되어 있어야 함
         for line1, line2 in product(point1_connected, point2_connected):
-            if line1.remove(point1) == line2.remove(point2):
-                target_point = line1.remove(point1)
+            line1 = line1.copy()
+            line1.remove(point1)
+            line2 = line2.copy()
+            line2.remove(point2)
+            if line1 == line2:
+                target_point = line1[0]
                 triangle = [point1,point2,target_point]
                 empty = True
                 for point in whole_points:
@@ -370,7 +379,7 @@ class Node():
             self.whole_points = parent.whole_points
             self.isOpponentTurn = not parent.isOpponentTurn
             if self.isOpponentTurn:
-                self.score = parent.score + check_triangle(added_line,self.total_lines,self.whole_points)
+                self.score = parent.score + check_triangle(added_line, self.total_lines,self.whole_points)
             else:
                 self.score = parent.score - check_triangle(added_line,self.total_lines,self.whole_points)
             self.available = available_update(parent.available, added_line)
@@ -395,7 +404,7 @@ class Node():
             return self.score, self.added_line
         
         if depth_limit == 0:
-            return evaluation_func, self.added_line # 평가함수 적용할 계획
+            return 0, self.added_line # 평가함수 적용할 계획
         
         else:
             for l in self.available:
@@ -433,7 +442,7 @@ class Node():
                         except:
                             pass
 
-        return self.score, target_line
+        return (self.score, target_line)
 
     def alpha_pruning(self,parent,child):
         if parent.alpha > child.alpha:
