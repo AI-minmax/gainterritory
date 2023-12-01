@@ -3,10 +3,18 @@ import time
 from itertools import combinations, product, chain
 from shapely import LineString, Point, Polygon, MultiLineString
 from machine import MACHINE
+<<<<<<< HEAD
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 
 debug = True
+=======
+
+import matplotlib.pyplot as plt
+import time
+import pandas as pd
+import os
+>>>>>>> 443479adbb4f6f67a2343194d6c6468daaa9dc71
 
 
 class Auto_fight():
@@ -151,6 +159,18 @@ class Auto_fight():
     def initialize_turn(self):
         self.turn = "RED"
 
+    #map 보여주는 함수
+    def showmap(self):
+        for line in self.drawn_lines:
+            multiline = LineString(line)
+            x, y = multiline.xy
+            plt.plot(x, y, 'o-')
+        for point in self.whole_points:
+            plt.scatter(point[0], point[1], color='black', marker='o')
+
+        plt.title('MADE BY LEESEOKJIN')
+        plt.show()
+
 
 def fight():
     a = Auto_fight()
@@ -159,6 +179,10 @@ def fight():
     result = ""
     while flag > 1:
         flag = a.machine_go(color=turn)
+        a.showmap()
+
+        # time.sleep(10)
+        
         if turn == "RED":
             turn = "BLUE"
         else:
