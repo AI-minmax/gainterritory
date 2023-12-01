@@ -394,7 +394,7 @@ class Node():
         else:
             for l in self.available:
                 child = Node(l, parent=self)
-                child_score = child.expand_node(depth_limit - 1, self.alpha, self.beta)
+                child_score, _ = child.expand_node(depth_limit - 1, self.alpha, self.beta)
                 if self.isOpponentTurn: #상대방 turn일 때 (minimize-player가 되야 하는 경우에)
                     if score > child_score:
                         score = child_score
