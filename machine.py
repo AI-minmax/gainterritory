@@ -16,18 +16,6 @@ class MACHINE():
            - 최종 결과는 find_best_selection을 통해 Line 형태로 도출
                * Line: [(x1, y1), (x2, y2)] -> MACHINE class에서는 x값이 작은 점이 항상 왼쪽에 위치할 필요는 없음 (System이 organize 함)
     """
-
-    #내가 득점하면 +1, 상대 득점 -1 (score)
-    #현재 상황에서 추가되는 lines: added_lines
-    #player에 대한 정보는 따로 필요 없을 것으로 판단'
-    #added_lines에는.. available line 추가 / 부모 단에서 available 검증해서 자식에게 보낼 것임
-    #민맥스는 후반에 쓸 것인데, avaialble 숫자가 적고, whole_points 다 검사하면.. 속도 너무 느림
-    class Node:
-        def __init__(self, score, added_lines):
-            self.score = score
-            self.added_lines = added_lines
-            self.children = []
-
     def __init__(self, score=[0, 0], drawn_lines=[], whole_lines=[], whole_points=[], location=[]):
         self.id = "MACHINE"
         self.score = [0, 0]  # USER, MACHINE
@@ -64,35 +52,132 @@ class MACHINE():
                 self.available.remove(l) #available 리스트 요소 삭제 및 update
 
 
-    #평가함수. 민맥스트리에서 시간 내에 최적해를 구하지 못했을 때 사용. 당장 만들 수 있는 삼각형이 없다고 가정.
-    #직선과 점을 연결하는 경우는 피한다. 직선과 직선을 연결하는 경우, 각 두 점이 서로 연결될 수 있는지, 즉 4개의 선분이 전부 가능한지 확인한다.
-    def evaluation(self):
-        #이미 그려져있는 선분 중 2개씩 선택
-        pair_list = list(combinations(self.drawn_lines, 2))
+    #선분과 선분 사이의 선분 중 이로울 확률이 높은 선분 리스트 반환
+    #각 노드에서 evaluation을 하기 전에 한 번 실행해 주어야 함.
+    def get_lines_between_lines(self, node):
+        #전체 선분 병합 후 중복 제거
+        all_line = node.added_lines + self.drawn_lines
+        all_line = list(set(map(tuple, all_line)))
+        all_line = [list(i) for i in all_line]
+        res = []
+        pair_list = list(combinations(all_line, 2))
         for pair in pair_list:
             #두 선분의 점의 수를 세고 4개가 아니면, 즉 각각 떨어져 있는 선분이 아니면 진행하지 않음
-            dot_cnt = list(set([pair[0][0], pair[0][1], pair[1][0], pair[1][1]]))
-            if len(dot_cnt) == 4:
+            dots = list(set([pair[0][0], pair[0][1], pair[1][0], pair[1][1]]))
+            comb_dots = list(combinations(dots, 3))
+            if len(dots) == 4:
                 #4개의 점으로 그릴 수 있는 선분 6개 중 이미 그려진 2개의 선분 제외 후 4개의 선분을 전부 그릴 수 있는지 판단
                 lines = [[pair[0][0], pair[1][0]], [pair[0][0], pair[1][1]], [pair[0][1], pair[1][0]], [pair[0][1], pair[1][1]]]
-                #4개의 선분 중 하나라도 그릴 수 없으면 falg가 False가 되고 다음 후보로 진행
+                #4개의 선분 중 하나라도 그릴 수 없으면 flag가 False가 되고 다음 후보로 진행
                 flag = True
                 for i in lines:
-                    if self.check_availability(i) == False:
+                    if self.check_availability_node(node, i) == False:
                         flag = False
-                    #print("i :", i, "flag :", flag)
-                #flag가 True일 시 네 선분 다 그릴 수 있는 선분임. 이중 하나 리턴
+                #만들게 될 삼각형 사이에 점이 있는지 확인. 하나라도 있으면 flag는 False
+                for dot in self.whole_points:
+                    for check in comb_dots:
+                        if inner_point(check[0], check[1], check[2], dot):
+                            flag = False
+                            break
+                    if flag == False:
+                        break
+                #flag가 True일 시 네 선분 다 이로울 확률이 높은 선분. res에 추가
                 if flag:
-                    return list(lines[0])
-        #가능한 선이 없을 시 -1 리턴
+                    lines.sort()
+                    res += lines
+        #중복 제거 후 리스트 반환
+        res = list(set(map(tuple, res)))
+        res = [list(i) for i in res]
+        return res
+    
+    #삼각형 내에 점이 하나 있을 때, 처음으로 그 점에 그리는 선분들을 반환
+    def get_lines_in_triangle(self, node):
+        all_line = node.added_lines + self.drawn_lines
+        all_line = list(set(map(tuple, all_line)))
+        all_line = [list(i) for i in all_line]
+        res = []
+        #선분 하나와 점 하나를 통해 삼각형이 이미 만들어져 있는지, 삼각형 내에 점이 하나 있는지, 점이 하나 있을 때 선분이 하나도 없는지 비교 후 모두 만족하면 세 선분을 res에 추가
+        for line in all_line:
+            for dot in self.whole_points:
+                if dot in line:
+                    continue
+                if ([dot, line[0]] not in all_line and [line[0], dot] not in all_line) or ([dot, line[1]] not in all_line and [line[1], dot] not in all_line):
+                    continue
+                cnt = 0
+                only_dot = None
+                for inner_dot in self.whole_points:
+                    if inner_dot==dot or inner_dot in line:
+                        continue
+                    if inner_point(dot, line[0], line[1], inner_dot):
+                        cnt += 1
+                        only_dot = inner_dot
+                if cnt != 1:
+                    continue
+                flag = False
+                dots = line + [dot]
+                lines = []
+                for i in dots:
+                    tmp = [only_dot, i]
+                    tmp.sort()
+                    lines += [tmp]
+                    if tmp in all_line:
+                        flag = True
+                        break
+                if not flag:
+                    res += lines
+        res = list(set(map(tuple, res)))
+        res = [list(i) for i in res]
+        return res
+    
+    #두 선분 리스트를 각 노드에서 미리 구한 뒤 evaluation 함수에 매개변수로 넣어주어야 함
+    #lines_bt : get_lines_between_lines()으로 구한 선분 리스트
+    #lines_tri : get_lines_triangle()으로 구한 선분 리스트
+    #각 선분 리스트 내에 line이 존재하는지 비교 후 반환
+    def evaluation(self, node, lines_bt, lines_tri, line):
+        #이미 존재하는 선분이면 -1
+        line.sort()
+        if line in self.drawn_lines or line in node.added_lines:
+            return -1
+        #선분 사이 선분 중 이로운 선분들 리스트에 선분이 있을 때
+        if line in lines_bt:
+            return 1
+        #삼각형 안에 점이 하나 있을 때 최초로 그리는 선분이면
+        if line in lines_tri:
+            return 1
+        #이외는 -1 반환
         return -1
 
     #알파베타 컷오프는 병렬 안됨 / 모듈화 필요
     #상대가 한 번에 2개의 삼각형 득점하는 경우: -무한대 / 우리가 한 번에 2개의 삼각형 득점: +무한대
     #한번에 2개의 삼각형을 얻는 것이 무한대의 이점이라고 우선 가정
     #더 이상 트리를 확장하지 않는 것으로 탐색해야 하는 범위를 축소
+    #alpha-beta pruning을 적용해 보았습니다
     #자료구조는 무엇으로? ->
-    # def min_max(self):
+    def min_max(self, depth, alpha, beta, maximizing_player, node):
+        if depth == 0:
+            return self.evaluation(node)
+        
+        if maximizing_player: #Max의 턴인 경우
+            max_eval = float('-inf') #우선 가장 작은 값으로 채워두고 시작 (max 값을 뽑아내야 하니깐)
+            for move in node.children: #node의 children들을 for문 돌리며 각 node값 evaluate!
+                eval = self.min_max(depth - 1, alpha, beta, False, move)
+                max_eval = max(max_eval, eval)
+                alpha = max(alpha, eval)
+
+                if beta <= alpha: 
+                    break #Beta Cut-off!
+            return max_eval
+        
+        else: #Min의 턴인 경우
+            min_eval = float('inf') #우선 가장 큰 값으로 채워두고 시작 (min 값을 뽑아내야 하니깐)
+            for move in node.children: #node의 children들을 for문 돌리며 각 node값 evaluate!
+                eval = self.min_max(depth - 1, alpha, beta, True, move)
+                min_eval = min(min_eval, eval)
+                beta = min(beta, eval)
+
+                if beta <= alpha:
+                    break #Alpha Cut-off!
+            return min_eval
 
     #삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
     #해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
@@ -200,11 +285,21 @@ class MACHINE():
                 return random.choice(available_skipWorst)
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
                 print("걍 랜덤임!")
-                eval_line = self.evaluation()
-                if eval_line != -1:
-                    return eval_line
                 
-                # self.isRule = False
+                #evaluation 함수 테스트용
+                node = self.Node(None, self.drawn_lines) #노드 임의로 지정
+                lines_bt = self.get_lines_between_lines(node)
+                lines_tri = self.get_lines_in_triangle(node)
+                for i in available_all:
+                    if self.evaluation(node, lines_bt, lines_tri , i) > 0 :
+                        return i
+                    
+                # Use the Min-Max function to find the best move
+                # best_move = self.min_max(self.depth, float('-inf'), float('inf'), False, node)
+                
+                # return best_move
+
+                #self.isRule = False
                 return random.choice(available_all)
         
         # elif self.isHeurisitic:
