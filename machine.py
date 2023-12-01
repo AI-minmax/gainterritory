@@ -155,8 +155,7 @@ class MACHINE():
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
-        if self.isHeurisitic:
-            self.minmax()
+        
         if self.isRule:
             #최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available_skipWorst list 구성
             available_skipWorst = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
@@ -182,12 +181,15 @@ class MACHINE():
                 return random.choice(available_skipWorst)
             else: #available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
                 print("걍 랜덤임!")
-                eval_line = self.evaluation()
-                if eval_line != -1:
-                    return eval_line
+                root = Node()
+                root.available = self.available
+                child_score, _ = root.expand_node(6, '-inf', 'inf')
+                # eval_line = self.evaluation()
+                # if eval_line != -1:
+                #     return eval_line
                 
-                # self.isRule = False
-                return random.choice(available_all)
+                # # self.isRule = False
+                # return random.choice(available_all)
         
         # elif self.isHeurisitic:
         #     #휴리스틱을 사용할 것임
@@ -324,18 +326,14 @@ def is_triangle(p1, p2, p3):
         # Handle other exceptions, e.g., if two points are the same
         return False
 
-# 선위에 점이 존재하는경우 라인은 available에서 거르고 whole_line에서 제외할것
+# 선위에 짐이 존재하는경우 라인은 어베일러블에서 거르고 홀 라인에서 제외할것
 # 삼각형 만들수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
-# whole_line: 현재 그려진 선 / whole_points: 현재 있는 모든 점
 def check_triangle(line, whole_line, whole_points):
-    lines = whole_line.copy()
-    lines.remove(line)
     point1 = line[0]
     point2 = line[1]
     point1_connected = []
     point2_connected = []
-    
-    for l in lines:
+    for l in whole_line:
         if point1 in l:
             point1_connected.append(l)
         if point2 in l:
@@ -359,11 +357,6 @@ def check_triangle(line, whole_line, whole_points):
 def evaluation_func():
     pass # 성환님 꺼 가져와서 만들것
 
-def alpha_pruning():
-    pass
-
-def beta_pruning():
-
 class Node():
     #먼저 초기화할 때, alpha, beta 값들을 추가하자.
     def __init__(self, added_line = None, parent = None, alpha=float('-inf'), beta=float('inf') ):
@@ -373,17 +366,21 @@ class Node():
 
         if parent is not None:
             self.added_line = added_line #추가한 line (이번 turn에 그릴 line)
-            self.total_lines = parent.total_lines + self.added_line 
+            self.total_lines = parent.total_lines
             self.whole_points = parent.whole_points
             self.isOpponentTurn = not parent.isOpponentTurn
-            if self.isOpponentTurn: #지금이 상대방 turn(minimize-player)인 경우 (added_line는 부모에서 그은 것임)
-                self.score = parent.score + check_triangle(added_line, self.total_lines, self.whole_points)
-            else: #지금이 내 turn(maximize-player)인 경우
-                self.score = parent.score - check_triangle(added_line, self.total_lines, self.whole_points)
+            if self.isOpponentTurn:
+                self.score = parent.score + check_triangle(added_line,self.total_lines,self.whole_points)
+            else:
+                self.score = parent.score - check_triangle(added_line,self.total_lines,self.whole_points)
             self.available = available_update(parent.available, added_line)
         else: #루트노드
+            self.added_line = None #추가한 line (이번 turn에 그릴 line)
+            self.total_lines = None
+            self.whole_points = None
             self.score = 0
             self.isOpponentTurn = False
+            self.available = []
             
 
     def expand_node(self, depth_limit, alpha, beta):
@@ -403,29 +400,49 @@ class Node():
         else:
             for l in self.available:
                 child = Node(l, parent=self)
-                child_score = child.expand_node(depth_limit - 1, self.alpha, self.beta)
+                child_score, _ = child.expand_node(depth_limit - 1, self.alpha, self.beta)
                 if self.isOpponentTurn: #상대방 turn일 때 (minimize-player가 되야 하는 경우에)
                     if score > child_score:
                         score = child_score
                         target_line = l
-                        pruning = alpha_pruning() #True, false로 반환 (pruning이 가능할 경우에만 True 반환)
-                        if pruning:
-                            break
+                        try:
+                            pruning = self.alpha_pruning(self, child) #True, false로 반환 (pruning이 가능할 경우에만 True 반환)
 
-                        beta = min(beta, score)
-                        if score <= alpha:
-                            break
+                            if pruning:
+                                break
+
+                            beta = min(beta, score)
+                            if score <= alpha:
+                                break
+                        except:
+                            pass
+                        
 
                 else: #내 turn일 때 (maximize-player가 되야 하는 경우에)
                     if score < child_score:
                         score = child_score
                         target_line = l
-                        pruning = beta_pruning() #True, false로 반환 (pruning이 가능할 경우에만 True 반환)
-                        if pruning:
-                            break
+                        try:
+                            pruning = self.beta_pruning(self, child) #True, false로 반환 (pruning이 가능할 경우에만 True 반환)
+                            if pruning:
+                                break
 
-                        alpha = max(alpha, score)
-                        if score >= beta:
-                            break
+                            alpha = max(alpha, score)
+                            if score >= beta:
+                                break
+                        except:
+                            pass
 
-        return self.score , target_line , pruning
+        return self.score, target_line
+
+    def alpha_pruning(self,parent,child):
+        if parent.alpha > child.alpha:
+            return True
+        else:
+            return False
+
+    def beta_pruning(self,parent,child):
+        if parent.beta < child.beta:
+            return True
+        else:
+            return False
