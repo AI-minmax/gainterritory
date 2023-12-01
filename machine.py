@@ -1,7 +1,8 @@
 import random
-from itertools import combinations
-from shapely.geometry import LineString, Point
 
+from shapely import Polygon
+from shapely.geometry import LineString, Point
+from itertools import product, chain, combinations
 import matplotlib as plt
 
 class MACHINE():
@@ -22,11 +23,8 @@ class MACHINE():
     #player에 대한 정보는 따로 필요 없을 것으로 판단'
     #added_lines에는.. available line 추가 / 부모 단에서 available 검증해서 자식에게 보낼 것임
     #민맥스는 후반에 쓸 것인데, avaialble 숫자가 적고, whole_points 다 검사하면.. 속도 너무 느림
-    class Node:
-        def __init__(self, score, added_lines):
-            self.score = score
-            self.added_lines = added_lines
-            self.children = []
+
+
 
     def __init__(self, score=[0, 0], drawn_lines=[], whole_lines=[], whole_points=[], location=[]):
         self.id = "MACHINE"
@@ -47,21 +45,6 @@ class MACHINE():
         self.isMinMax = True
 
 
-    #상태 업데이트
-    #self.available: 
-    def available_update(self):
-        self.lastDrawn = self.drawn_lines - self.lastState
-        self.available = self.available - (self.lastDrawn)
-        self.intersection_check()
-
-    def intersection_check(self):
-        line = self.last_drawn
-        line_string = LineString(self.last_drawn)
-        for l in self.available:
-            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
-                continue
-            elif bool(line_string.intersection(LineString(l))):
-                self.available.remove(l) #available 리스트 요소 삭제 및 update
 
 
     #평가함수. 민맥스트리에서 시간 내에 최적해를 구하지 못했을 때 사용. 당장 만들 수 있는 삼각형이 없다고 가정.
@@ -92,7 +75,7 @@ class MACHINE():
     #한번에 2개의 삼각형을 얻는 것이 무한대의 이점이라고 우선 가정
     #더 이상 트리를 확장하지 않는 것으로 탐색해야 하는 범위를 축소
     #자료구조는 무엇으로? ->
-    # def min_max(self):
+
 
     #삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
     #해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
@@ -174,7 +157,8 @@ class MACHINE():
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
-
+        if self.isHeurisitic:
+            self.minmax()
         if self.isRule:
             #최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available_skipWorst list 구성
             available_skipWorst = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
@@ -221,11 +205,11 @@ class MACHINE():
         candiate_triangle = []
         prev_triangle = list(combinations(self.drawn_lines, 2))
         for lines in prev_triangle[:]:
-            dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
+            dots_three = list({lines[0][0], lines[0][1], lines[1][0], lines[1][1]})
             if len(dots_three) != 3:
                 prev_triangle.remove(lines)
         for lines in prev_triangle:
-            dots_three = list(set([lines[0][0], lines[0][1], lines[1][0], lines[1][1]]))
+            dots_three = list({lines[0][0], lines[0][1], lines[1][0], lines[1][1]})
             bitFlag=0
             if [dots_three[0], dots_three[1]] in available:
                 bitFlag=bitFlag|(1<<0)
@@ -278,7 +262,7 @@ class MACHINE():
         # Must not cross another line
         condition3 = True
         for l in self.drawn_lines:
-            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
+            if len(list({line[0], line[1], l[0], l[1]})) == 3:
                 continue
             elif bool(line_string.intersection(LineString(l))):
                 condition3 = False
@@ -291,6 +275,15 @@ class MACHINE():
         else:
             return False
 
+def available_update(available, lastDrawn):
+    available = available - lastDrawn
+    line_string = LineString(lastDrawn)
+    for l in available:
+        if len(list({lastDrawn[0], lastDrawn[1], l[0], l[1]})) == 3:
+            continue
+        elif bool(line_string.intersection(LineString(l))):
+            available.remove(l)
+    return available
 
 def inner_point(point1, point2, point3, point):
     try:
@@ -332,3 +325,85 @@ def is_triangle(p1, p2, p3):
     except:
         # Handle other exceptions, e.g., if two points are the same
         return False
+
+# 선위에 짐이 존재하는경우 라인은 어베일러블에서 거르고 홀 라인에서 제외할것
+# 삼각형 만들수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
+def check_triangle(line, whole_line,whole_points):
+    point1 = line[0]
+    point2 = line[1]
+    point1_connected = []
+    point2_connected = []
+    for l in whole_line:
+        if point1 in l:
+            point1_connected.append(l)
+        if point2 in l:
+            point2_connected.append(l)
+    third_point = []
+    if point1_connected and point2_connected:  # 최소한 2점 모두 다른 선분과 연결되어 있어야 함
+        for line1, line2 in product(point1_connected, point2_connected):
+            if line1.remove(point1) == line2.remove(point2):
+                target_point = line1.remove(point1)
+                triangle = [point1,point2,target_point]
+                empty = True
+                for point in whole_points:
+                    if point in triangle:
+                        continue
+                    if bool(Polygon(triangle).intersection(Point(point))):
+                        empty = False
+                if empty:
+                    third_point.append(target_point)
+    return len(third_point)
+
+def evaluation_func():
+    pass # 성환님 꺼 가져와서 만들것
+
+def alpha_pruning():
+    pass
+
+def beta_pruning():
+
+class Node():
+    def __init__(self,added_line = None, parent = None):
+        self.ab_value = 0 # 알파베타 가지치기용 isOpponent에 따라서 알파값인지 베타값인지 결정
+        if parent is not None:
+            self.added_line = added_line
+            self.total_lines = parent.total_lines
+            self.whole_points = parent.whole_points
+            self.isOpponentTurn = not parent.isOpponentTurn
+            if self.isOpponentTurn:
+                self.score = parent.score + check_triangle(added_line,self.total_lines,self.whole_points)
+            else:
+                self.score = parent.score - check_triangle(added_line,self.total_lines,self.whole_points)
+            self.available = available_update(parent.available, added_line)
+        else: #루트노드
+            self.score = 0
+            self.isOpponentTurn = False
+            
+
+
+
+
+    def expand_node(self,depth_limit):
+        score = self.score -3 # 한턴 만에 3점을 실점할 수는 없다.
+        if len(self.available) == 0: #게임 끝났다는 의미
+            return self.score, self.added_line
+        if depth_limit == 0:
+            return evaluation_func , self.added_line # 평가함수 적용할 계획
+        else:
+            for l in self.available:
+                child = Node(l, parent=self)
+                child_score = child.expand_node(depth_limit - 1)
+                if self.isOpponentTurn:
+                    if score > child_score:
+                        target_line = l
+                        pruning = alpha_pruning()
+                        if pruning:
+                            break
+                else:
+                    if score < child_score:
+                        target_line = l
+                        pruning = beta_pruning()
+                        if pruning:
+                            break
+
+        return self.score , target_line , pruning;
