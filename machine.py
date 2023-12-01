@@ -45,8 +45,6 @@ class MACHINE():
         self.isMinMax = True
 
 
-
-
     #평가함수. 민맥스트리에서 시간 내에 최적해를 구하지 못했을 때 사용. 당장 만들 수 있는 삼각형이 없다고 가정.
     #직선과 점을 연결하는 경우는 피한다. 직선과 직선을 연결하는 경우, 각 두 점이 서로 연결될 수 있는지, 즉 4개의 선분이 전부 가능한지 확인한다.
     def evaluation(self):
@@ -328,7 +326,7 @@ def is_triangle(p1, p2, p3):
 
 # 선위에 짐이 존재하는경우 라인은 어베일러블에서 거르고 홀 라인에서 제외할것
 # 삼각형 만들수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
-def check_triangle(line, whole_line,whole_points):
+def check_triangle(line, whole_line, whole_points):
     point1 = line[0]
     point2 = line[1]
     point1_connected = []
@@ -363,10 +361,14 @@ def alpha_pruning():
 def beta_pruning():
 
 class Node():
-    def __init__(self,added_line = None, parent = None):
-        self.ab_value = 0 # 알파베타 가지치기용 isOpponent에 따라서 알파값인지 베타값인지 결정
+    #먼저 초기화할 때, alpha, beta 값들을 추가하자.
+    def __init__(self, added_line = None, parent = None, alpha=float('-inf'), beta=float('inf') ):
+        # self.ab_value = 0 (알파베타 가지치기용 isOpponent에 따라서 알파값인지 베타값인지 결정)
+        self.alpha = alpha
+        self.beta = beta
+
         if parent is not None:
-            self.added_line = added_line
+            self.added_line = added_line #추가한 line (이번 turn에 그릴 line)
             self.total_lines = parent.total_lines
             self.whole_points = parent.whole_points
             self.isOpponentTurn = not parent.isOpponentTurn
@@ -380,30 +382,46 @@ class Node():
             self.isOpponentTurn = False
             
 
+    def expand_node(self, depth_limit, alpha, beta):
 
+        #-1 ~ +1 사이에 값으로 eval_func 값을 정규화한다고 가정한다고 +1, -1로 설정
+        if self.isOpponentTurn:
+            score = self.score + 1 #상대방 turn일 때에는 자신이 득점할 수 없다
+        else:
+            score = self.score - 1 #내 turn에는 실점할 수 없다
 
-
-    def expand_node(self,depth_limit):
-        score = self.score -3 # 한턴 만에 3점을 실점할 수는 없다.
         if len(self.available) == 0: #게임 끝났다는 의미
             return self.score, self.added_line
+        
         if depth_limit == 0:
-            return evaluation_func , self.added_line # 평가함수 적용할 계획
+            return evaluation_func, self.added_line # 평가함수 적용할 계획
+        
         else:
             for l in self.available:
                 child = Node(l, parent=self)
-                child_score = child.expand_node(depth_limit - 1)
-                if self.isOpponentTurn:
+                child_score = child.expand_node(depth_limit - 1, self.alpha, self.beta)
+                if self.isOpponentTurn: #상대방 turn일 때 (minimize-player가 되야 하는 경우에)
                     if score > child_score:
+                        score = child_score
                         target_line = l
-                        pruning = alpha_pruning()
-                        if pruning:
-                            break
-                else:
-                    if score < child_score:
-                        target_line = l
-                        pruning = beta_pruning()
+                        pruning = alpha_pruning() #True, false로 반환 (pruning이 가능할 경우에만 True 반환)
                         if pruning:
                             break
 
-        return self.score , target_line , pruning;
+                        beta = min(beta, score)
+                        if score <= alpha:
+                            break
+
+                else: #내 turn일 때 (maximize-player가 되야 하는 경우에)
+                    if score < child_score:
+                        score = child_score
+                        target_line = l
+                        pruning = beta_pruning() #True, false로 반환 (pruning이 가능할 경우에만 True 반환)
+                        if pruning:
+                            break
+
+                        alpha = max(alpha, score)
+                        if score >= beta:
+                            break
+
+        return self.score , target_line , pruning
