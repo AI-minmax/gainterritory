@@ -431,7 +431,7 @@ class Node():
         score = float('-inf') if self.isOpponentTurn else float('inf')
 
         if depth_limit == 0: #노드를 만들면서 tree를 계속 확장하다가 depth-limit에 도달했을 때
-            return score, self.added_line  # 평가함수 적용할 계획 (score 대신에 evaluate()을 넣을 것임)
+            return 0, self.added_line  # 평가함수 적용할 계획 (score 대신에 evaluate()을 넣을 것임)
 
         target_line = None #target_line 비어있는 거 문제 해결
 
