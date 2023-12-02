@@ -1,12 +1,9 @@
-import itertools
 import random
+from tools import *
+from shapely.geometry import LineString
+from itertools import combinations
+from main import debug
 
-from shapely import Polygon
-from shapely.geometry import LineString, Point
-from itertools import product, chain, combinations
-import matplotlib.pyplot as plt
-
-debug =True
 class MACHINE():
     """
         [ MACHINE ]
@@ -33,40 +30,34 @@ class MACHINE():
         self.board_size = 7  # 7 x 7 Matrix
         self.num_dots = 0
         self.whole_points = []
-
-        self.available = []
+        self.available = generate_available(self.drawn_lines,self.whole_points)
         self.lastState = []
         self.lastDrawn = []
-
         self.location = []
         self.triangles = []  # [(a, b), (c, d), (e, f)]
         self.isRule = True
         self.isHeurisitic = True
         self.isMinMax = True
 
-    # 평가함수. 민맥스트리에서 시간 내에 최적해를 구하지 못했을 때 사용. 당장 만들 수 있는 삼각형이 없다고 가정.
-    # 직선과 점을 연결하는 경우는 피한다. 직선과 직선을 연결하는 경우, 각 두 점이 서로 연결될 수 있는지, 즉 4개의 선분이 전부 가능한지 확인한다.
-    def evaluation(self):
-        # 이미 그려져있는 선분 중 2개씩 선택
-        pair_list = list(combinations(self.drawn_lines, 2))
-        for pair in pair_list:
-            # 두 선분의 점의 수를 세고 4개가 아니면, 즉 각각 떨어져 있는 선분이 아니면 진행하지 않음
-            dot_cnt = list(set([pair[0][0], pair[0][1], pair[1][0], pair[1][1]]))
-            if len(dot_cnt) == 4:
-                # 4개의 점으로 그릴 수 있는 선분 6개 중 이미 그려진 2개의 선분 제외 후 4개의 선분을 전부 그릴 수 있는지 판단
-                lines = [[pair[0][0], pair[1][0]], [pair[0][0], pair[1][1]], [pair[0][1], pair[1][0]],
-                         [pair[0][1], pair[1][1]]]
-                # 4개의 선분 중 하나라도 그릴 수 없으면 falg가 False가 되고 다음 후보로 진행
-                flag = True
-                for i in lines:
-                    if self.check_availability(i) == False:
-                        flag = False
-                    # print("i :", i, "flag :", flag)
-                # flag가 True일 시 네 선분 다 그릴 수 있는 선분임. 이중 하나 리턴
-                if flag:
-                    return list(lines[0])
-        # 가능한 선이 없을 시 -1 리턴
-        return -1
+
+    #상태 업데이트
+    #self.available:
+    def available_update(self):
+        for line in self.drawn_lines:
+            if line not in self.lastState:
+                self.lastDrawn = line
+                break
+        self.intersection_check()
+
+    def intersection_check(self):
+        line = self.last_drawn
+        line_string = LineString(self.last_drawn)
+        for l in self.available:
+            if len(list({line[0], line[1], l[0], l[1]})) == 3:
+                continue
+            elif bool(line_string.intersection(LineString(l))):
+                self.available.remove(l) #available 리스트 요소 삭제 및 update
+
 
     # 알파베타 컷오프는 병렬 안됨 / 모듈화 필요
     # 상대가 한 번에 2개의 삼각형 득점하는 경우: -무한대 / 우리가 한 번에 2개의 삼각형 득점: +무한대
@@ -113,9 +104,8 @@ class MACHINE():
             # 3개의 점으로 삼각형을 만들 수 있는 경우에만 내부에 점이 있는지 판명하면 된다
             # 3개의 점으로 삼각형을 안 만든다면 그냥 넘긴다(continue)
             # 삼각형을 만드는 조건은 맞지만, self.check_availability를 통해, 상대방이 긋는 선이 유효하기까지 해야 아래의 조건들을 확인하는 게 의미가 있다
-            if is_triangle(overlapping_point, non_overlapping_points[0],
-                           non_overlapping_points[1]) and self.check_availability(
-                    [non_overlapping_points[0], non_overlapping_points[1]]):
+            if (is_triangle(overlapping_point, non_overlapping_points[0],non_overlapping_points[1])
+                    and [non_overlapping_points[0], non_overlapping_points[1]] in self.available):
                 # 만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 그 경우는 삼각형으로 인정 안된다
                 for point in self.whole_points:
                     # point가 그으려는(혹은 이미 그어진) 선분에 포함되는 3개의 점이라면 검사할 필요가 없다
@@ -144,7 +134,7 @@ class MACHINE():
     def check_valid_line(self, line):
         # check_availability()로 1차 검사
         # check_availability()로 선분을 그을 수 없는 예외 사항들을 모두 처리할 수 있다고 판단되었습니다.
-        if not self.check_availability(line):
+        if line not in self.available:
             return False
 
         # 지금 그을려고 하는 선분을 통해서, check_stealing_situation_inOpponentTurn() 함수의 return 값의 길이가 1 이상일 경우
@@ -164,17 +154,13 @@ class MACHINE():
             available_skipWorst = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
                                    self.check_valid_line([point1, point2])]
 
-            # 선분이 하나도 연결되어 있지 않은 점이 한개도 남아있지 않은 경우 candidate_line을 available_all에서 뽑아야 할 것이므로.. available_all list 하나 더 생성
-            available_all = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
-                             self.check_availability([point1, point2])]
-
             # check_triangle에서 얻은 삼각형을 그릴 수 있는 candidate_line들의 list를 저장합니다.
             # 즉, 하나만 더 그으면 삼각형을 만들 수 있는 바로 그 선분들의 list가 candidate_line에 저장됩니다.
             # available_skipWorst에서 하나만 더 그으면 삼각형을 만들 수 있는 list를 못 찾았다면, available_all에서 찾아야 합니다.
             candidate_line = self.check_triangle(available_skipWorst)
+            # 선분이 하나도 연결되어 있지 않은 점이 한개도 남아있지 않은 경우 candidate_line을 available에서 뽑아야 할 것
             if len(candidate_line) == 0:
-                candidate_line = self.check_triangle(available_all)
-
+                candidate_line = self.check_triangle(self.available)
             if len(candidate_line) != 0:  # candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
                 print("하나만 더 그으면 삼각형 획득!, 아래 리스트는 해당 상황에서의 candidate line")
                 return random.choice(candidate_line)  # 그들 중에 random 선택
@@ -185,7 +171,7 @@ class MACHINE():
             else:  # available_part 리스트도 비어있다면, 그냥 check_availabilty()로 가능한 모든 선분들 중 random 선택해야 할 것입니다.
                 print("걍 랜덤임!")
                 root = Node()
-                root.available = available_all
+                root.available = self.available
                 root.total_lines = self.drawn_lines
                 root.whole_points = self.whole_points
                 child_score, _ = root.expand_node(3, '-inf', 'inf')
@@ -248,150 +234,10 @@ class MACHINE():
                     elif bitFlag & (1 << 5):
                         candiate_triangle.append([dots_three[1], dots_three[2]])
         return candiate_triangle
+    
 
-    def check_availability(self, line):
-        line_string = LineString(line)
+    #heuristic()에서 노드용으로 사용할
 
-        # Must be one of the whole points
-        condition1 = (line[0] in self.whole_points) and (line[1] in self.whole_points)
-
-        # Must not skip a dot
-        condition2 = True
-        for point in self.whole_points:
-            if point == line[0] or point == line[1]:
-                continue
-            else:
-                if bool(line_string.intersection(Point(point))):
-                    condition2 = False
-
-        # Must not cross another line
-        condition3 = True
-        for l in self.drawn_lines:
-            if len(list({line[0], line[1], l[0], l[1]})) == 3:
-                continue
-            elif bool(line_string.intersection(LineString(l))):
-                condition3 = False
-
-        # Must be a new line
-        condition4 = (line not in self.drawn_lines)
-
-        if condition1 and condition2 and condition3 and condition4:
-            return True
-        else:
-            return False
-
-
-# def available_update(available, lastDrawn):
-#     available = available.copy()
-#     available.remove(lastDrawn)
-#     line_string = LineString(lastDrawn)
-#     for l in available:
-#         if len(list({lastDrawn[0], lastDrawn[1], l[0], l[1]})) == 3:
-#             continue
-#         elif bool(line_string.intersection(LineString(l))):
-#             available.remove(l)
-#     return available
-
-def available_update(available, lastDrawn, total_lines):
-    available = available.copy()
-    available.remove(lastDrawn)
-
-    line_string = LineString(lastDrawn)
-    for l in available:
-        if(len(list({lastDrawn[0], lastDrawn[1], l[0], l[1]})) != len(set(lastDrawn + l))):
-            print(len(list({lastDrawn[0], lastDrawn[1], l[0], l[1]})), len(set(lastDrawn + l)))
-        if len(set(lastDrawn + l)) == 3:
-            continue
-        elif line_string.intersects(LineString(l)):
-            available.remove(l)
-
-    return available
-
-
-def inner_point(point1, point2, point3, point):
-    try:
-        a = ((point2[1] - point3[1]) * (point[0] - point3[0]) + (point3[0] - point2[0]) * (point[1] - point3[1])) / (
-                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (
-                        point1[1] - point3[1]))
-        b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
-                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (
-                        point1[1] - point3[1]))
-    except:
-        return False
-    c = 1 - a - b
-    if a > 0 and b > 0 and c > 0:
-        return True
-    else:
-        return False
-
-
-# inner_point 그대로 가져다 쓰면, check_triangle에서 오류를 범할 수 있으므로, 등호를 추가한 버전은 따로 만들었습니다
-def inner_point_usingInStealChecking(point1, point2, point3, point):
-    try:
-        a = ((point2[1] - point3[1]) * (point[0] - point3[0]) + (point3[0] - point2[0]) * (point[1] - point3[1])) / (
-                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (
-                        point1[1] - point3[1]))
-        b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
-                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (
-                        point1[1] - point3[1]))
-    except:
-        return False
-    c = 1 - a - b
-
-    if 0 <= a <= 1 and 0 <= b <= 1 and 0 <= c <= 1:
-        return True
-    else:
-        return False
-
-
-# 3개의 꼭짓점 정보를 받아서 이것이 삼각형이 되는지 판명하는 함수
-# 이 함수는, 3개의 점이 일직선상에 있는지도 판명한다 (일직선상에 있으면 false 반환)
-def is_triangle(p1, p2, p3):
-    try:
-        slope1 = (p1[1] - p2[1]) / (p1[0] - p2[0])
-        slope2 = (p3[1] - p2[1]) / (p3[0] - p2[0])
-
-        return slope1 != slope2
-    except ZeroDivisionError:
-        # Handle the case where the denominator is zero (vertical line)
-        return True
-    except:
-        # Handle other exceptions, e.g., if two points are the same
-        return False
-
-
-# 선위에 짐이 존재하는경우 라인은 어베일러블에서 거르고 홀 라인에서 제외할것
-# 삼각형 만들수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
-def check_triangle(line, whole_line, whole_points):
-    point1, point2 = line
-    l1 = []
-    l2 = []
-    third_point = []
-    for l in whole_line:
-        assert type(l) is list
-        if l == line:
-            continue
-        if point1 in l:
-            l1.append(l)
-        if point2 in l:
-            l2.append(l)
-    for line1, line2 in itertools.product(l1, l2):
-        for element in line1:
-            if element in line2:
-                innerpoint = True
-                for point in whole_points:
-                    if point in [point1, point2, element]:
-                        continue
-                    if inner_point(point1, point2, element, point):
-                        innerpoint = False
-                if innerpoint:
-                    third_point.append(element)
-
-    return len(third_point)
-
-
-def evaluation_func():
-    pass  # 성환님 꺼 가져와서 만들것
 
 
 class Node():
@@ -403,21 +249,20 @@ class Node():
 
         if parent is not None:
             self.added_line = added_line  # 추가한 line (이번 turn에 그릴 line)
-            self.total_lines = parent.total_lines + [added_line]
+            self.total_lines = parent.total_lines
             self.whole_points = parent.whole_points
             self.isOpponentTurn = not parent.isOpponentTurn
             score = check_triangle(added_line, self.total_lines, self.whole_points)
-            if score != 0:
-                print("score가 양수인 경우!")
+            if (score != 0):
+                print(score)
             if self.isOpponentTurn:
                 self.score = parent.score + score
             else:
                 self.score = parent.score - score
-            self.available = available_update(parent.available, added_line, self.total_lines)
-
+            self.available = available_update(parent.available, added_line)
         else:  # 루트노드
             self.added_line = None  # 추가한 line (이번 turn에 그릴 line)
-            self.total_lines = []
+            self.total_lines = None
             self.whole_points = None
             self.score = 0
             self.isOpponentTurn = False
@@ -495,13 +340,9 @@ class Node():
         return parent.beta <= child.beta
 
 
-def showmap(drawn_lines, whole_points):
-    for line in drawn_lines:
-        multiline = LineString(line)
-        x, y = multiline.xy
-        plt.plot(x, y, 'o-')
-    for point in whole_points:
-        plt.scatter(point[0], point[1], color='black', marker='o')
 
-    plt.title('MADE BY LEESEOKJIN')
-    plt.show()
+
+
+
+
+    
