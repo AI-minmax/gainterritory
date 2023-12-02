@@ -1,3 +1,4 @@
+import itertools
 import random
 
 from shapely import Polygon
@@ -452,7 +453,6 @@ def inner_point(point1, point2, point3, point):
         return True
     else:
         return False
-            return False
 
 
 def available_update(available, lastDrawn):
