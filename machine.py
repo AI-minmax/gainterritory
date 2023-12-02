@@ -3,6 +3,9 @@ import random
 from shapely import Polygon
 from shapely.geometry import LineString, Point
 from itertools import product, chain, combinations
+
+import itertools
+
 import matplotlib as plt
 
 class MACHINE():
@@ -333,35 +336,77 @@ def is_triangle(p1, p2, p3):
 
 # 선위에 짐이 존재하는경우 라인은 어베일러블에서 거르고 홀 라인에서 제외할것
 # 삼각형 만들수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
+# def check_triangle(line, whole_line, whole_points):
+#     point1 = line[0]
+#     point2 = line[1]
+#     point1_connected = []
+#     point2_connected = []
+#     for l in whole_line:
+#         if point1 in l:
+#             point1_connected.append(l)
+#         if point2 in l:
+#             point2_connected.append(l)
+#     third_point = []
+#     if point1_connected and point2_connected:  # 최소한 2점 모두 다른 선분과 연결되어 있어야 함
+#         for line1, line2 in product(point1_connected, point2_connected):
+#             line1 = line1.copy()
+#             line1.remove(point1)
+#             line2 = line2.copy()
+#             line2.remove(point2)
+#             if line1 == line2:
+#                 target_point = line1[0]
+#                 triangle = [point1,point2,target_point]
+#                 empty = True
+#                 for point in whole_points:
+#                     if point in triangle:
+#                         continue
+#                     if bool(Polygon(triangle).intersection(Point(point))):
+#                         empty = False
+#                 if empty:
+#                     third_point.append(target_point)
+#     return len(third_point)
+
+
+#삼각형을 만들 수 있는 갯수를 INT 타입으로 0,1,2로 반환한다.
 def check_triangle(line, whole_line, whole_points):
-    point1 = line[0]
-    point2 = line[1]
-    point1_connected = []
-    point2_connected = []
-    for l in whole_line:
-        if point1 in l:
-            point1_connected.append(l)
-        if point2 in l:
-            point2_connected.append(l)
+    point1, point2 = line
     third_point = []
-    if point1_connected and point2_connected:  # 최소한 2점 모두 다른 선분과 연결되어 있어야 함
-        for line1, line2 in product(point1_connected, point2_connected):
-            line1 = line1.copy()
-            line1.remove(point1)
-            line2 = line2.copy()
-            line2.remove(point2)
-            if line1 == line2:
-                target_point = line1[0]
-                triangle = [point1,point2,target_point]
-                empty = True
-                for point in whole_points:
-                    if point in triangle:
-                        continue
-                    if bool(Polygon(triangle).intersection(Point(point))):
-                        empty = False
-                if empty:
-                    third_point.append(target_point)
+
+    for l1, l2 in itertools.combinations(whole_line, 2):
+        common_points = set(l1) & set(l2)
+
+        if len(common_points) == 1:
+            third_point_candidate = list(set(line) ^ common_points)
+            triangle = [point1, point2, third_point_candidate[0]]
+
+            if not are_points_collinear(triangle) and is_point_inside_triangle(whole_points, triangle):
+                third_point.append(third_point_candidate[0])
+
     return len(third_point)
+
+def are_points_collinear(points):
+    x1, y1 = points[0]
+    x2, y2 = points[1]
+    x3, y3 = points[2]
+
+    return (y2 - y1) * (x3 - x2) == (y3 - y2) * (x2 - x1)
+
+def is_point_inside_triangle(all_points, triangle):
+    a, b, c = triangle
+
+    for point in all_points:
+        if point in triangle:
+            continue
+
+        if is_point_inside_half_plane(a, b, point, c) and \
+           is_point_inside_half_plane(b, c, point, a) and \
+           is_point_inside_half_plane(c, a, point, b):
+            return True
+
+    return False
+
+def is_point_inside_half_plane(start, end, point, apex):
+    return (end[0] - start[0]) * (point[1] - start[1]) - (end[1] - start[1]) * (point[0] - start[0]) >= 0
 
 def evaluation_func():
     pass # 성환님 꺼 가져와서 만들것
@@ -403,10 +448,12 @@ class Node():
         if len(self.available) == 0: #게임 끝났다는 의미
             return self.score, self.added_line
         
-        if depth_limit == 0:
-            return 0, self.added_line # 평가함수 적용할 계획
+        if depth_limit == 0: #depth limit까지 끝까지 탐색했을 경우
+            return score, self.added_line # 평가함수 적용할 계획
         
-        else:
+        else: #depth limit에서 끝까지 탐색하지 않았을 경우엔 (child를 만들고 있는 와중이라면)
+            target_line = None #loop 바깥에서 target_line을 업데이트한다
+
             for l in self.available:
                 child = Node(l, parent=self)
                 child_score, _ = child.expand_node(depth_limit - 1, self.alpha, self.beta)
@@ -441,8 +488,9 @@ class Node():
                                 break
                         except:
                             pass
-
-        return (self.score, target_line)
+                            
+        # print(score)
+        return (score, target_line)
 
     def alpha_pruning(self,parent,child):
         if parent.alpha > child.alpha:
