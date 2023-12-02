@@ -176,24 +176,12 @@ def fight():
     result = ""
     while flag > 1:
         flag = a.machine_go(color=turn)
-        a.showmap()
-
-        # time.sleep(10)
-        
+        #a.showmap()
         if turn == "RED":
             turn = "BLUE"
         else:
             turn = "RED"
-    if debug:
-        for line in a.drawn_lines:
-            multiline = LineString(line)
-            x, y = multiline.xy
-            plt.plot(x, y, 'o-')
-            plt.show()
-        plt.title('MADE BY LEESEOKJIN')
-        plt.show()
-    else:
-        print(flag, end=" ")
+    print(flag, end=" ")
     if flag == -1:
         return fight()
     for i in range(7):
