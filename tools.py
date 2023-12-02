@@ -7,22 +7,17 @@ import matplotlib.pyplot as plt
 debug = True
 
 def generate_available(drawn_lines, whole_points):
-    tuple_drawn_lines = []
-    for line in drawn_lines:
-        # tuple_line = tuple(line)
-        sorted_line_list = sorted(line)
-        tuple_line = tuple(sorted_line_list)
-        tuple_drawn_lines.append(tuple_line)
+    tuple_drawn_lines = set(tuple(sorted(line)) for line in drawn_lines)
     available = []
 
     # 존재하는 선인지 체크
     for point1, point2 in combinations(whole_points,2):
         line_string = LineString([point1, point2])
-        if (point1, point2) in tuple_drawn_lines:
+        if tuple(sorted((point1, point2))) in tuple_drawn_lines:
             continue
         flag = False # 교차 체크
         for l in tuple_drawn_lines:
-            if len(list({tuple(point1), tuple(point2), tuple(l[0]), tuple(l[1])})) == 4:
+            if len(set([point1, point2, l[0], l[1]])) == 4:
                 if bool(line_string.intersection(LineString(l))):
                     flag = True
                     break
@@ -42,6 +37,7 @@ def generate_available(drawn_lines, whole_points):
         available_line_add_list = sorted((point1, point2))
         returnToTuple = tuple(available_line_add_list)
         available.append(returnToTuple)
+
     return available
 
 
@@ -211,9 +207,9 @@ def get_lines_in_triangle(whole_line,whole_points,available_line):
 def evaluation(whole_line, whole_points, available_line):
     good_lines = get_lines_between_lines(whole_line, whole_points, available_line)
     bad_lines = get_lines_in_triangle(whole_line, whole_points, available_line)
-    print(len(good_lines),good_lines)
-    print(len(bad_lines),bad_lines)
-    print(len(available_line),available_line)
+    # print(len(good_lines),good_lines)
+    # print(len(bad_lines),bad_lines)
+    # print(len(available_line),available_line)
     score = (len(good_lines) - len(bad_lines))/(len(available_line)+1)
     return score
 
