@@ -48,15 +48,17 @@ class MACHINE():
     #상태 업데이트
     #self.available:
     def available_update(self):
-        self.lastDrawn = self.drawn_lines - self.lastState
-        self.available = self.available - (self.lastDrawn)
+        for line in self.drawn_lines:
+            if line not in self.lastState:
+                self.lastDrawn = line
+                break
         self.intersection_check()
 
     def intersection_check(self):
         line = self.last_drawn
         line_string = LineString(self.last_drawn)
         for l in self.available:
-            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
+            if len(list({line[0], line[1], l[0], l[1]})) == 3:
                 continue
             elif bool(line_string.intersection(LineString(l))):
                 self.available.remove(l) #available 리스트 요소 삭제 및 update
