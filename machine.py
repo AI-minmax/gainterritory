@@ -1,4 +1,3 @@
-import itertools
 import random
 
 from shapely import Polygon
@@ -39,6 +38,132 @@ class MACHINE():
         self.lastDrawn = []
 
         self.location = []
+        self.triangles = []  # [(a, b), (c, d), (e, f)]
+        self.isRule = True
+        self.isHeurisitic = True
+        self.isMinMax = True
+
+
+    #상태 업데이트
+    #self.available:
+    def available_update(self):
+        self.lastDrawn = self.drawn_lines - self.lastState
+        self.available = self.available - (self.lastDrawn)
+        self.intersection_check()
+
+    def intersection_check(self):
+        line = self.last_drawn
+        line_string = LineString(self.last_drawn)
+        for l in self.available:
+            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
+                continue
+            elif bool(line_string.intersection(LineString(l))):
+                self.available.remove(l) #available 리스트 요소 삭제 및 update
+
+    #선분과 선분 사이의 선분 중 이로울 확률이 높은 선분 리스트 반환
+    #각 노드에서 evaluation을 하기 전에 한 번 실행해 주어야 함.
+    def get_lines_between_lines(self, node):
+        #전체 선분 병합 후 중복 제거
+        all_line = node.added_lines + self.drawn_lines
+        all_line = list(set(map(tuple, all_line)))
+        all_line = [list(i) for i in all_line]
+        res = []
+        pair_list = list(combinations(all_line, 2))
+        for pair in pair_list:
+            #두 선분의 점의 수를 세고 4개가 아니면, 즉 각각 떨어져 있는 선분이 아니면 진행하지 않음
+            dots = list(set([pair[0][0], pair[0][1], pair[1][0], pair[1][1]]))
+            comb_dots = list(combinations(dots, 3))
+            if len(dots) == 4:
+                #4개의 점으로 그릴 수 있는 선분 6개 중 이미 그려진 2개의 선분 제외 후 4개의 선분을 전부 그릴 수 있는지 판단
+                lines = [[pair[0][0], pair[1][0]], [pair[0][0], pair[1][1]], [pair[0][1], pair[1][0]], [pair[0][1], pair[1][1]]]
+                #4개의 선분 중 하나라도 그릴 수 없으면 flag가 False가 되고 다음 후보로 진행
+                flag = True
+                for i in lines:
+                    if self.check_availability_node(node, i) == False:
+                        flag = False
+                #만들게 될 삼각형 사이에 점이 있는지 확인. 하나라도 있으면 flag는 False
+                for dot in self.whole_points:
+                    for check in comb_dots:
+                        if inner_point(check[0], check[1], check[2], dot):
+                            flag = False
+                            break
+                    if flag == False:
+                        break
+                #flag가 True일 시 네 선분 다 이로울 확률이 높은 선분. res에 추가
+                if flag:
+                    lines.sort()
+                    res += lines
+        #중복 제거 후 리스트 반환
+        res = list(set(map(tuple, res)))
+        res = [list(i) for i in res]
+        return res
+
+    #삼각형 내에 점이 하나 있을 때, 처음으로 그 점에 그리는 선분들을 반환
+    def get_lines_in_triangle(self, node):
+        all_line = node.added_lines + self.drawn_lines
+        all_line = list(set(map(tuple, all_line)))
+        all_line = [list(i) for i in all_line]
+        res = []
+        #선분 하나와 점 하나를 통해 삼각형이 이미 만들어져 있는지, 삼각형 내에 점이 하나 있는지, 점이 하나 있을 때 선분이 하나도 없는지 비교 후 모두 만족하면 세 선분을 res에 추가
+        for line in all_line:
+            for dot in self.whole_points:
+                if dot in line:
+                    continue
+                if ([dot, line[0]] not in all_line and [line[0], dot] not in all_line) or ([dot, line[1]] not in all_line and [line[1], dot] not in all_line):
+                    continue
+                cnt = 0
+                only_dot = None
+                for inner_dot in self.whole_points:
+                    if inner_dot==dot or inner_dot in line:
+                        continue
+                    if inner_point(dot, line[0], line[1], inner_dot):
+                        cnt += 1
+                        only_dot = inner_dot
+                if cnt != 1:
+                    continue
+                flag = False
+                dots = line + [dot]
+                lines = []
+                for i in dots:
+                    tmp = [only_dot, i]
+                    tmp.sort()
+                    lines += [tmp]
+                    if tmp in all_line:
+                        flag = True
+                        break
+                if not flag:
+                    res += lines
+        res = list(set(map(tuple, res)))
+        res = [list(i) for i in res]
+        return res
+
+    #두 선분 리스트를 각 노드에서 미리 구한 뒤 evaluation 함수에 매개변수로 넣어주어야 함
+    #lines_bt : get_lines_between_lines()으로 구한 선분 리스트
+    #lines_tri : get_lines_triangle()으로 구한 선분 리스트
+    #각 선분 리스트 내에 line이 존재하는지 비교 후 반환
+    def evaluation(self, node, lines_bt, lines_tri, line):
+        #이미 존재하는 선분이면 -1
+        line.sort()
+        if line in self.drawn_lines or line in node.added_lines:
+            return -1
+        #선분 사이 선분 중 이로운 선분들 리스트에 선분이 있을 때
+        if line in lines_bt:
+            return 1
+        #삼각형 안에 점이 하나 있을 때 최초로 그리는 선분이면
+        if line in lines_tri:
+            return 1
+        #이외는 -1 반환
+        return -1
+
+
+
+    #알파베타 컷오프는 병렬 안됨 / 모듈화 필요
+    #상대가 한 번에 2개의 삼각형 득점하는 경우: -무한대 / 우리가 한 번에 2개의 삼각형 득점: +무한대
+    #한번에 2개의 삼각형을 얻는 것이 무한대의 이점이라고 우선 가정
+    #더 이상 트리를 확장하지 않는 것으로 탐색해야 하는 범위를 축소
+    #자료구조는 무엇으로? ->
+    # def min_max(self):
+
         self.triangles = []  # [(a, b), (c, d), (e, f)]
         self.isRule = True
         self.isHeurisitic = True
@@ -278,6 +403,55 @@ class MACHINE():
         if condition1 and condition2 and condition3 and condition4:
             return True
         else:
+            return False
+
+    #heuristic()에서 노드용으로 사용할 함수
+    def check_availability_node(self, node, line):
+        line_string = LineString(line)
+        cur_lines = self.drawn_lines + node.added_lines
+
+        # Must be one of the whole points
+        condition1 = (line[0] in self.whole_points) and (line[1] in self.whole_points)
+
+        # Must not skip a dot
+        condition2 = True
+        for point in self.whole_points:
+            if point == line[0] or point == line[1]:
+                continue
+            else:
+                if bool(line_string.intersection(Point(point))):
+                    condition2 = False
+
+        # Must not cross another line
+        condition3 = True
+        for l in cur_lines:
+            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
+                continue
+            elif bool(line_string.intersection(LineString(l))):
+                condition3 = False
+
+        # Must be a new line
+        condition4 = (line not in cur_lines)
+
+        if condition1 and condition2 and condition3 and condition4:
+            return True
+        else:
+            return False
+
+def inner_point(point1, point2, point3, point):
+    try:
+        a = ((point2[1] - point3[1]) * (point[0] - point3[0]) + (point3[0] - point2[0]) * (point[1] - point3[1])) / (
+                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
+        b = ((point3[1] - point1[1]) * (point[0] - point3[0]) + (point1[0] - point3[0]) * (point[1] - point3[1])) / (
+                    (point2[1] - point3[1]) * (point1[0] - point3[0]) + (point3[0] - point2[0]) * (point1[1] - point3[1]))
+    except:
+        return False
+
+    c = 1 - a - b
+    if a > 0 and b > 0 and c > 0:
+        return True
+    else:
+        return False
             return False
 
 
