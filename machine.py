@@ -1,8 +1,8 @@
 import random
-from tools import *
+from tools import generate_available, inner_point, available_update, inner_point_usingInStealChecking, is_triangle, check_triangle, evaluation, showmap
 from shapely.geometry import LineString
 from itertools import combinations
-from main import debug
+
 
 class MACHINE():
     """
@@ -58,12 +58,6 @@ class MACHINE():
             elif bool(line_string.intersection(LineString(l))):
                 self.available.remove(l) #available 리스트 요소 삭제 및 update
 
-
-    # 알파베타 컷오프는 병렬 안됨 / 모듈화 필요
-    # 상대가 한 번에 2개의 삼각형 득점하는 경우: -무한대 / 우리가 한 번에 2개의 삼각형 득점: +무한대
-    # 한번에 2개의 삼각형을 얻는 것이 무한대의 이점이라고 우선 가정
-    # 더 이상 트리를 확장하지 않는 것으로 탐색해야 하는 범위를 축소
-    # 자료구조는 무엇으로? ->
 
     # 삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
     # 해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
@@ -148,6 +142,9 @@ class MACHINE():
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
+        #맨 처음 시작하는 경우 whole_points가 안 들어오는 경우를 대비한 예외처리
+        if len(self.available)+len(self.drawn_lines) < 2:
+            self.available = generate_available(self.drawn_lines, self.whole_points)
 
         if self.isRule:
             # 최악의 상황은 면할 수 있는 check_valid_line()을 통해서 일단 available_skipWorst list 구성
@@ -159,6 +156,7 @@ class MACHINE():
             # available_skipWorst에서 하나만 더 그으면 삼각형을 만들 수 있는 list를 못 찾았다면, available_all에서 찾아야 합니다.
             candidate_line = self.check_triangle(available_skipWorst)
             # 선분이 하나도 연결되어 있지 않은 점이 한개도 남아있지 않은 경우 candidate_line을 available에서 뽑아야 할 것
+            showmap(self.drawn_lines, self.whole_points)
             if len(candidate_line) == 0:
                 candidate_line = self.check_triangle(self.available)
             if len(candidate_line) != 0:  # candidate_line 리스트가 비어있지 않다면, 즉 하나만 더 그으면 삼각형이 될 수 있는 상황이 있다면
@@ -176,7 +174,7 @@ class MACHINE():
                 root.whole_points = self.whole_points
                 child_score, _ = root.expand_node(3, '-inf', 'inf')
                 print(child_score, _)
-                return _
+                return list(_)
                 # eval_line = self.evaluation()
                 # if eval_line != -1:
                 #     return eval_line
@@ -276,7 +274,7 @@ class Node():
         score = float('-inf') if self.isOpponentTurn else float('inf')
 
         if depth_limit == 0: #노드를 만들면서 tree를 계속 확장하다가 depth-limit에 도달했을 때
-            return 0, self.added_line  # 평가함수 적용할 계획 (score 대신에 evaluate()을 넣을 것임)
+            return evaluation(self.total_lines, self.whole_points, self.available), self.added_line  # 평가함수 적용할 계획 (score 대신에 evaluate()을 넣을 것임)
 
         target_line = None #target_line 비어있는 거 문제 해결
 

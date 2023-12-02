@@ -3,14 +3,18 @@ from shapely import Polygon
 from shapely.geometry import LineString, Point
 from itertools import product, chain, combinations
 import matplotlib.pyplot as plt
-from main import debug
+
+debug = True
 
 def generate_available(drawn_lines, whole_points):
     tuple_drawn_lines = []
     for line in drawn_lines:
-        tuple_line = tuple(line)
+        # tuple_line = tuple(line)
+        sorted_line_list = sorted(line)
+        tuple_line = tuple(sorted_line_list)
         tuple_drawn_lines.append(tuple_line)
     available = []
+
     # 존재하는 선인지 체크
     for point1, point2 in combinations(whole_points,2):
         line_string = LineString([point1, point2])
@@ -33,7 +37,11 @@ def generate_available(drawn_lines, whole_points):
                     flag= True
         if flag:
             continue
-        available.append((point1,point2))
+
+        #여기도 정렬 필요
+        available_line_add_list = sorted((point1, point2))
+        returnToTuple = tuple(available_line_add_list)
+        available.append(returnToTuple)
     return available
 
 
@@ -55,11 +63,15 @@ def inner_point(point1, point2, point3, point):
 
 def available_update(available, lastDrawn):
     available = available.copy()
-    available.remove(lastDrawn)
-    line_string = LineString(lastDrawn)
+    lastDrawn_sorted_list = sorted(lastDrawn)
+    lastDrawn_sortedTuple = tuple(lastDrawn_sorted_list)
+    available.remove(lastDrawn_sortedTuple)
+    line_string = LineString(lastDrawn_sortedTuple)
+
     for l in available:
-        if len(list({lastDrawn[0], lastDrawn[1], l[0], l[1]})) == 3:
+        if len(list({lastDrawn_sortedTuple[0], lastDrawn_sortedTuple[1], l[0], l[1]})) == 3:
             continue
+        
         elif bool(line_string.intersection(LineString(l))):
             available.remove(l)
     return available
@@ -125,7 +137,7 @@ def check_triangle(line, whole_line, whole_points):
                     if inner_point(point1,point2,element,point):
                         innerpoint = False
                 if innerpoint:
-                    third_point.append(element.copy())
+                    third_point.append(element)
                     if debug:  # 디버깅 중이라면
                         showmap(whole_line,whole_points)
                     result_line = whole_line + [line]
