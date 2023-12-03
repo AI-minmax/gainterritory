@@ -33,7 +33,7 @@ class Auto_fight():
         self.initialize_turn()
 
     def set_new_board(self):
-        self.num_dots = random.randrange(5, 21)
+        self.num_dots = 5 #random.randrange(5, 21)
         self.score = {"RED": 0, "BLUE": 0}  # USER, MACHINE
         self.drawn_lines = []  # Drawn Lines
         self.whole_points = []
@@ -45,6 +45,7 @@ class Auto_fight():
             for y in range(self.board_size):
                 self.whole_points.append((x, y))
         self.whole_points = random.sample(self.whole_points, self.num_dots)
+        self.whole_points.sort()  # 정렬 안되어 있는 경우가 있음
 
     def machine_go(self, color):
         self.machine[color].score = self.score
