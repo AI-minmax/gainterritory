@@ -54,7 +54,7 @@ class Auto_fight():
         self.machine[color].location = self.location
         self.machine[color].triangles = self.triangles
 
-        line = self.machine[color].find_best_selection()
+        line = self.machine[color].find_best_selection2()
         line = self.organize_points(line)
 
         if self.check_availability(color, line):

@@ -18,7 +18,7 @@ def generate_available(drawn_lines, whole_points):
     # 존재하는 선인지 체크
     for point1, point2 in combinations(whole_points, 2):
         line_string = LineString([point1, point2])
-        if tuple(sorted((point1, point2))) in drawn_lines:
+        if sorted((point1, point2)) in drawn_lines:
             continue
         flag = False  # 교차 체크
         for l in drawn_lines:
@@ -28,7 +28,6 @@ def generate_available(drawn_lines, whole_points):
                     break
         if flag:
             continue
-        flag = False
         for point in whole_points:
             if point == point1 or point == point2:
                 continue
@@ -162,9 +161,19 @@ def get_score_line(drawn_lines, whole_points, available):
             continue
         point1 = [item for item in dots_three if item not in line1][0]
         point2 = [item for item in dots_three if item not in line2][0]
+        if sorted([point1,point2]) not in available:
+            continue
         candiate_triangle.append(sorted([point1, point2]))
-    square = [item for item, count in Counter(candiate_triangle).items() if count > 1]
-    return square, candiate_triangle
+
+    unique_items = []
+    counter_square = []
+
+    for item in candiate_triangle:
+        if item in unique_items:
+            counter_square.append(item)
+        else:
+            unique_items.append(item)
+    return counter_square, candiate_triangle
 
 # 선분과 선분 사이의 선분 중 이로울 확률이 높은 선분 리스트 반환  #각 노드에서 evaluation을 하기 전에 한 번 실행해 주어야 함.
 # 이 리스트에 해당하는 선분들은 가점을 부여할 예정

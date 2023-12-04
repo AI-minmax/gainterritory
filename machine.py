@@ -43,87 +43,66 @@ class MACHINE:
         self.location = []
         self.triangles = []  # [(a, b), (c, d), (e, f)]
         self.isRule = True
-        self.isHeurisitic = True
+        self.isMinMaxActivate = False
         self.isMinMax = False
 
     # 상태 업데이트
     def update_turn(self):
         self.drawn_lines = [sorted(line) for line in self.drawn_lines]
-        # 맨 처음 시작하는 경우 available은 비어 있으므로, 그에 대비한 예외처리 (선공인 경우)
-        if len(self.available) != 0:
-            for line in self.drawn_lines:
-                if line not in self.lastState:
-                    line_string = LineString(line)
-                    for l in self.available:
-                        if len(list({line[0], line[1], l[0], l[1]})) == 3:
-                            continue
-                        elif bool(line_string.intersection(LineString(l))):
-                            self.available.remove(l)
-        else:
+        if len(self.drawn_lines) < 2:
             self.available = generate_available(self.drawn_lines, self.whole_points)
+        for line in self.drawn_lines:
+            if line not in self.lastState:
+                self.lastDrawn = line
+                try:
+                    self.available.remove(line)
+                except:
+                    pass
+                line_string = LineString(line)
+                for l in self.available:
+                    if len(list({line[0], line[1], l[0], l[1]})) == 3:
+                        continue
+                    elif bool(line_string.intersection(LineString(l))):
+                        self.available.remove(l)
+
 
     # 삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
     # 해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
     # available에서 한 선분을 뽑는다면, 선분에 양쪽 끝에 점이 있지 / 그 점에 연결된 선분들을 check를 해서 양쪽 점이 공통으로 가지고 있는 점이 일치하는 점이 있는지 확인 / 그 선분을 추가했을 때, check_triangle() 해서 True 반환하면, must_stealed_point()에서 True 반환
     def check_stealing_situation_inOpponentTurn(self, line):
         connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
-
-        # 애초에 점이 겹치는 게 없으면 훔칠 기회가 없다
+        try:
+            connected_lines.remove(line)
+        except:
+            pass
         if len(connected_lines) < 1:
             return False
-
-        # 삼각형을 뺏길 수 있는 상황이 1번이라도 연출되면 아래 isDangerous 값은 True로 바뀔 것이다
-        isDangerous = False
-
-        # 위에서 1보다 크거나 같게 나오면 삼각형의 3개의 선분 중 2개의 선분이 연결되는 경우이므로 중복되는 점(두 선분이 겹치는 점)을 제외한 점들의 값을 알아내야 한다
-        # 그 2개의 점의 좌표는 상대방 턴에 그을 선분의 양 끝 점의 좌표이다(steal 할 수 있는 경우라고 볼 수 있지)
-        # 그런데, 그 선분을 긋고, 삼각형 안을 확인해보니 점이 1개 이상 있다고 하면, 그러면 steal 못하니까, 걍 그어도 상관 없다!
-        # connected_lines는 len이 1 이상일 수 있으니까, for문을 돌린다
+        isDangerous = True
         for connected_line in connected_lines:
-
-            # 그냥 all_points_set_withDuplicate
             all_points_set_withDuplicate = list([connected_line[0], connected_line[1], line[0], line[1]])
-            # 중복 제거를 위해 set으로 함
             all_points_set_nonDuplicate = set([connected_line[0], connected_line[1], line[0], line[1]])
-
-            # 중복된 값 찾기 (tuple을 넘겨줄 것임)
+            assert len(all_points_set_nonDuplicate)==3, "all 어쩌구는 3이 아니다."
             overlapping_point = \
                 [item for item in all_points_set_nonDuplicate if all_points_set_withDuplicate.count(item) > 1][0]
-
             if not overlapping_point:
-                # Handle the case when overlapping_point is None (아마 초반에만 이거에 걸러질거임)
                 return False
-
-            # 겹치는 point를 제외한 점들의 좌표(2개가 되겠죠)를 따로 저장한다 (overlapping_point는 1개만 나오는 것이 정상이므로, for문 돌릴 필요가 없습니다)
             all_points_set_nonDuplicate.discard(overlapping_point)
             non_overlapping_points = list(all_points_set_nonDuplicate)
-            sorted_point_list = sorted((non_overlapping_points[0], non_overlapping_points[1]))
-            sorted_point_tuple = tuple(sorted_point_list)
-
-            # 3개의 점으로 삼각형을 만들 수 있는 경우에만 내부에 점이 있는지 판명하면 된다
-            # 3개의 점으로 삼각형을 안 만든다면 그냥 넘긴다(continue)
-            # 삼각형을 만드는 조건은 맞지만, self.check_availability를 통해, 상대방이 긋는 선이 유효하기까지 해야 아래의 조건들을 확인하는 게 의미가 있다
+            sorted_point_list = sorted([non_overlapping_points[0], non_overlapping_points[1]])
             if (is_triangle(overlapping_point, non_overlapping_points[0], non_overlapping_points[1])) and (
-                    sorted_point_tuple in self.available):
-                # 만약에 non_overlapping_points와 overlapping_point를 이용해서 만들어진 삼각형 내부에 self.whole_points에 있는 점이 1개 이상 있는게 판명되면 그 경우는 삼각형으로 인정 안된다
+                    sorted_point_list in self.available):
                 for point in self.whole_points:
-                    # point가 그으려는(혹은 이미 그어진) 선분에 포함되는 3개의 점이라면 검사할 필요가 없다
                     if point == overlapping_point or point == non_overlapping_points[0] or point == \
                             non_overlapping_points[1]:
                         continue
-                    # inner_point_usingInStealChecking 함수로 3개의 점을 기준으로 이루어진 삼각형 내부에 whole_points에 포함되는 점이 있는 지 확인 가능
-                    # 일직선 상에 있는 점도 판명 가능(예외처리를 위함)
-                    # 다음 connected_line과의 확인을 위해 continue
                     elif inner_point_usingInStealChecking(overlapping_point, non_overlapping_points[0],
                                                           non_overlapping_points[1], point):
+                        isDangerous = False
                         break
-                    else:  # inner_point에서 내부에 점이 없다는 것이 판명되면
-                        isDangerous = True  # 실점할 수 있는 위험한 상황으로 판명
+                    else:
+                        continue
             else:
                 continue
-
-        # 삼각형을 상대방에게 뺏기는 상황이 한번이라도 발생했다면, isDangerous는 True를 반환했을 것이다
-        # 그것을 확인하고, 값이 일치하면 False 반환, 아니면 최종적으로 True 반환
         if isDangerous == False:
             return False
         else:
@@ -138,14 +117,13 @@ class MACHINE:
             return random.choice(triangle), 1
         guardpoint_line = [[point1, point2] for (point1, point2) in self.available if
                            not self.check_stealing_situation_inOpponentTurn([point1, point2])]
-        if len(guardpoint_line) > 2:
-            return random.choice(guardpoint_line)
-        elif len(guardpoint_line) > 1:
+        if len(guardpoint_line) > 1:
+            return random.choice(guardpoint_line), 0
+        elif len(guardpoint_line) > 0:
             self.isMinMax = True
             return random.choice(guardpoint_line), 0
         self.isMinMax = True
-        print("득점도 방워도 하지못함")
-        showmap(self.drawn_lines, self.whole_points)
+        print("득점도 방어도 하지못함")
         return random.choice(self.available), -1
 
     def minmax(self, result_queue):
@@ -157,8 +135,15 @@ class MACHINE:
         print(child_score, _)
         result_queue.put(list(_))  # 리턴대신
 
-    # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection(self):
+        result = self.find_best_selection2()
+        self.drawn_lines.append(result)
+        self.update_turn()
+        return result
+
+    # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
+    def find_best_selection2(self):
+        showmap(self.drawn_lines, self.whole_points)
         start_t = time.time()
         self.update_turn()
         if self.isMinMax:  # 민맥스 트리 시작
@@ -172,13 +157,17 @@ class MACHINE:
                     minmax_process.terminate()
                 return rule_result
         if self.isMinMax:
-            remain_time = int(start_t - time.time() + 55)
-            minmax_process.join(timeout=remain_time)
-            if result_queue.empty():
-                minmax_process.terminate()
-                return rule_result
+            if self.isMinMaxActivate:
+                remain_time = int(start_t - time.time() + 55)
+                minmax_process.join(timeout=remain_time)
+                if result_queue.empty():
+                    minmax_process.terminate()
+                    return rule_result
+                else:
+                    return result_queue.get()
             else:
-                return result_queue.get()
+                self.isMinMaxActivate = True
+                return rule_result
         else:
             return rule_result
 
