@@ -224,6 +224,7 @@ class SYSTEM():
 
         for idx_x, idx_y in self.whole_points:
             self.circle(self.location[idx_x], self.location[idx_y], CIRCLE_COLOR)
+        self.whole_points.sort()  # 정렬 안되어 있는 경우가 있음
 
     def circle(self, cx, cy, color):
         self.board.create_oval(cx-RADIUS, cy-RADIUS, cx+RADIUS, cy+RADIUS, fill=color, width=CIRCLE_WIDTH)

@@ -1,36 +1,73 @@
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
 from bayes_opt import BayesianOptimization
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import StratifiedKFold
 from xgboost import XGBClassifier
-header = []
-for i in range (7):
-    for j in range(7):
-        header.append(str(i)+str(j))
-data = pd.read_csv("DATA.csv", header=["00","01"])
-# 전처리 필요함
+from sklearn.model_selection import train_test_split
+from xgboost import plot_importance
+import matplotlib.pyplot as plt
 
-num_data = len(data)
-X = data[:, :num_data - 1]
-y = data[:, -1]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=14)
-model = XGBClassifier(n_estimators=500, learning_rate=0.2, max_depth=4, random_state = 32)
+def convert_to_bool(value):
+    return bool(int(value))
+
+
+def load_train_data():
+    _data = []
+    df = pd.read_csv(f"learning_data/data_{0}.csv", index_col=None, header=None)
+    for i in range(24):
+        _data.append(pd.read_csv(f"learning_data/data_{i}.csv", index_col=None, header=None,
+                                 converters={col: convert_to_bool for col in df.columns}))
+    _data = pd.concat(_data)
+    X, y = _data.iloc[:, :-1], _data.iloc[:, -1]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+    return X_train, X_test, y_train, y_test
+
+
+
+def read_real_board(file_path):
+    file_path = "./board_library/sample_5nodes.csv"
+    df = pd.read_csv(file_path, index_col=0)
+    df = pd.read_csv(file_path, index_col=0, converters={col: convert_to_bool for col in df.columns})
+    return df
+
+
+proc_num = 24  # 24번까지 존재(컴퓨터 사양에 따라 다름)
+
+X_train, X_test, y_train, y_test = load_train_data()
+model = XGBClassifier(n_estimators=5000, learning_rate=0.05, max_depth=40, eval_metric='logloss')
+#model = XGBClassifier()
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 accuracy_score(y_pred, y_test)
+
+plot_importance(model)
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ########################
-#베이지안 방식으로 정확도를 개선시킬필요 있음
+# 베이지안 방식으로 정확도를 개선시킬필요 있음
 
 bayes_dtrain = xgb.DMatrix(X_train, y_train)
 bayes_dtest = xgb.DMatrix(X_test, y_test)
 
-onehot_encoder=OneHotEncoder()
-encoded_cat_matrix=onehot_encoder.fit_transform(X)
+onehot_encoder = OneHotEncoder()
+encoded_cat_matrix = onehot_encoder.fit_transform(X)
 
 param_bounds = {'max_depth': (4, 8),
                 'subsample': (0.6, 0.9),
@@ -46,7 +83,7 @@ fixed_params = {'objective': 'binary:logistic',
                 'random_state': 1991}
 
 
-#평가지표
+# 평가지표
 def evalfunc(y_true, y_pred):
     pass
 
