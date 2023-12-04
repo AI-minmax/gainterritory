@@ -120,7 +120,7 @@ class MACHINE:
         root.available = self.available.copy()
         root.total_lines = self.drawn_lines.copy()
         root.whole_points = self.whole_points.copy()
-        child_score, _ = root.expand_node(3)
+        child_score, _ = root.expand_node(2)
         #print(child_score, _)
         # result_queue.put(list(_))  # 리턴대신
         return list(_)
@@ -152,7 +152,16 @@ class MACHINE:
         # lagacy_process.start()
         # lagacy_process.join()
         # return result_queue.get()
-        best_solutions = self.use_lagacy()
+        lagacy_result=self.use_lagacy()
+        if type(lagacy_result[0])==tuple:
+            self.available = [lagacy_result]
+        else:
+            self.available = lagacy_result
+        self.available = [sorted(line) for line in self.available]
+        print(len(self.available))
+        if len(self.available) > 10:
+            return random.choice(self.available)
+        self.isMinMax = True
         if self.isMinMax:  # 민맥스 트리 시작
             result = self.minmax()
             print(time.time()-start_t)
