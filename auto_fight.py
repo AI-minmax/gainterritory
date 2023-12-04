@@ -33,7 +33,7 @@ class Auto_fight():
         self.initialize_turn()
 
     def set_new_board(self):
-        self.num_dots = 5 #random.randrange(5, 21)
+        self.num_dots = 12 #random.randrange(5, 21)
         self.score = {"RED": 0, "BLUE": 0}  # USER, MACHINE
         self.drawn_lines = []  # Drawn Lines
         self.whole_points = []
