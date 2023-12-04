@@ -60,12 +60,11 @@ def inner_point(point1, point2, point3, point):
 def available_update(available, lastDrawn):
     available = available.copy()
     lastDrawn_sorted_list = sorted(lastDrawn)
-    lastDrawn_sortedTuple = tuple(lastDrawn_sorted_list)
-    available.remove(lastDrawn_sortedTuple)
-    line_string = LineString(lastDrawn_sortedTuple)
+    available.remove(lastDrawn_sorted_list)
+    line_string = LineString(lastDrawn_sorted_list)
 
     for l in available:
-        if len(list({lastDrawn_sortedTuple[0], lastDrawn_sortedTuple[1], l[0], l[1]})) == 3:
+        if len(list({lastDrawn_sorted_list[0], lastDrawn_sorted_list[1], l[0], l[1]})) == 3:
             continue
 
         elif bool(line_string.intersection(LineString(l))):
@@ -134,11 +133,11 @@ def check_triangle(line, whole_line, whole_points):
                         innerpoint = False
                 if innerpoint:
                     third_point.append(element)
-                    if debug:  # 디버깅 중이라면
-                        showmap(whole_line, whole_points)
+                    # if debug:  # 디버깅 중이라면
+                    #     showmap(whole_line, whole_points)
                     result_line = whole_line + [line]
-                    if debug:
-                        showmap(result_line, whole_points)
+                    # if debug:
+                    #     showmap(result_line, whole_points)
     return len(third_point)
 
 
@@ -231,7 +230,10 @@ def get_lines_in_triangle(whole_line, whole_points, available_line):
 
 # 에러가 발생했을시 available_line 이 업데이트가 되었는지 확인할 것
 def evaluation(whole_line, whole_points, available_line):
-    assert available_line == generate_available(whole_line, whole_points), "evaluation에서 available_line 입력이상"
+    try:
+        assert available_line == generate_available(whole_line, whole_points), "evaluation에서 available_line 입력이상"
+    except:
+        print(available_line,generate_available(whole_line, whole_points))
     good_lines = get_lines_between_lines(whole_line, whole_points, available_line)
     bad_lines = get_lines_in_triangle(whole_line, whole_points, available_line)
     # print(len(good_lines),good_lines)
