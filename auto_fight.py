@@ -33,7 +33,7 @@ class Auto_fight():
         self.initialize_turn()
 
     def set_new_board(self):
-        self.num_dots = 12 #random.randrange(5, 21)
+        self.num_dots = 17 #random.randrange(5, 21)
         self.score = {"RED": 0, "BLUE": 0}  # USER, MACHINE
         self.drawn_lines = []  # Drawn Lines
         self.whole_points = []
@@ -54,7 +54,7 @@ class Auto_fight():
         self.machine[color].location = self.location
         self.machine[color].triangles = self.triangles
 
-        line = self.machine[color].find_best_selection2()
+        line = self.machine[color].find_best_selection()
         line = self.organize_points(line)
 
         if self.check_availability(color, line):

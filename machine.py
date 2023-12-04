@@ -5,6 +5,7 @@ import time
 from collections import Counter
 from multiprocessing import Process
 
+from legacy_machine import Legacy_M
 from tools import generate_available, inner_point, available_update, inner_point_usingInStealChecking, is_triangle, \
     check_triangle, evaluation, showmap, get_score_line
 from shapely.geometry import LineString
@@ -51,19 +52,7 @@ class MACHINE:
         self.drawn_lines = [sorted(line) for line in self.drawn_lines]
         # if len(self.drawn_lines) < 2:
         self.available = generate_available(self.drawn_lines, self.whole_points)
-        # for line in self.drawn_lines:
-        #     if line not in self.lastState:
-        #         self.lastDrawn = line
-        #         try:
-        #             self.available.remove(line)
-        #         except:
-        #             pass
-        #         line_string = LineString(line)
-        #         for l in self.available:
-        #             if len(list({line[0], line[1], l[0], l[1]})) == 3:
-        #                 continue
-        #             elif bool(line_string.intersection(LineString(l))):
-        #                 self.available.remove(l)
+
 
 
     # 삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
@@ -131,7 +120,6 @@ class MACHINE:
         root.available = self.available.copy()
         root.total_lines = self.drawn_lines.copy()
         root.whole_points = self.whole_points.copy()
-        assert sorted(self.available) == sorted(generate_available(self.drawn_lines,self.whole_points)), "minmax available miss"
         child_score, _ = root.expand_node(3)
         #print(child_score, _)
         # result_queue.put(list(_))  # 리턴대신
@@ -141,15 +129,28 @@ class MACHINE:
         result = self.find_best_selection2()
         self.drawn_lines.append(result)
         #self.update_turn()
-        assert sorted(self.available) == sorted(generate_available(self.drawn_lines, self.whole_points)), "find_best_selection available miss"
+
         return result
+
+    def use_lagacy(self, result_queue):
+        legacy =Legacy_M()
+        legacy.score = self.score
+        legacy.drawn_lines = self.drawn_lines
+        legacy.whole_points = self.whole_points
+        legacy.location = self.location
+        legacy.triangles = self.triangles
+        result_queue.put(legacy.find_best_selection())
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection2(self):
         showmap(self.drawn_lines, self.whole_points)
         start_t = time.time()
         self.update_turn()
-        assert sorted(self.available) == sorted(generate_available(self.drawn_lines,self.whole_points)), "find_best_selection2 available miss"
+        result_queue = multiprocessing.Queue()
+        lagacy_process = Process(target=self.use_lagacy, args=(result_queue,))
+        lagacy_process.start()
+        lagacy_process.join()
+        return result_queue.get()
         if self.isMinMax:  # 민맥스 트리 시작
             result = self.minmax()
             print(time.time()-start_t)
