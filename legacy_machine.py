@@ -113,14 +113,14 @@ class Legacy_M():
             if len(candidate_line) == 0:
                 candidate_line = self.check_triangle(available_all)
             if len(candidate_line) != 0:
-                return random.choice(candidate_line)  # 그들 중에 random 선택
+                return candidate_line  # 그들 중에 random 선택
             elif len(available_skipworst) != 0:
-                return random.choice(available_skipworst)
+                return available_skipworst
             else:
                 eval_line = self.evaluation()
                 if eval_line != -1:
                     return eval_line
-                return random.choice(available_all)
+                return available_all
     def check_triangle(self, available):
         avail_triangle = []
         candiate_triangle = []

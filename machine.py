@@ -132,25 +132,27 @@ class MACHINE:
 
         return result
 
-    def use_lagacy(self, result_queue):
+    def use_lagacy(self):
         legacy =Legacy_M()
         legacy.score = self.score
         legacy.drawn_lines = self.drawn_lines
         legacy.whole_points = self.whole_points
         legacy.location = self.location
         legacy.triangles = self.triangles
-        result_queue.put(legacy.find_best_selection())
+        return legacy.find_best_selection()
+        #result_queue.put(legacy.find_best_selection())
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection2(self):
         showmap(self.drawn_lines, self.whole_points)
         start_t = time.time()
         self.update_turn()
-        result_queue = multiprocessing.Queue()
-        lagacy_process = Process(target=self.use_lagacy, args=(result_queue,))
-        lagacy_process.start()
-        lagacy_process.join()
-        return result_queue.get()
+        # result_queue = multiprocessing.Queue()
+        # lagacy_process = Process(target=self.use_lagacy, args=(result_queue,))
+        # lagacy_process.start()
+        # lagacy_process.join()
+        # return result_queue.get()
+        best_solutions = self.use_lagacy()
         if self.isMinMax:  # 민맥스 트리 시작
             result = self.minmax()
             print(time.time()-start_t)
