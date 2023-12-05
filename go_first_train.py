@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split
 from xgboost import plot_importance
 import matplotlib.pyplot as plt
 
+proc_num = 24  # 24번까지 존재(컴퓨터 사양에 따라 다름)
+
 
 def convert_to_bool(value):
     return bool(int(value))
@@ -27,25 +29,33 @@ def load_train_data():
     return X_train, X_test, y_train, y_test
 
 
-
 def read_real_board(file_path):
     file_path = "./board_library/sample_5nodes.csv"
     df = pd.read_csv(file_path, index_col=0)
     df = pd.read_csv(file_path, index_col=0, converters={col: convert_to_bool for col in df.columns})
-    return df
+    # df.
+    return df.to_numpy().flatten().reshape((1,49))
 
 
-proc_num = 24  # 24번까지 존재(컴퓨터 사양에 따라 다름)
+def get_xgbmodel():
+    X_train, X_test, y_train, y_test = load_train_data()
+    model = XGBClassifier(n_estimators=5000, learning_rate=0.05, max_depth=40, eval_metric='logloss')
+    # model = XGBClassifier()
+    model.fit(X_train, y_train)
+    # y_pred = model.predict(X_test)
+    # accuracy_score(y_pred, y_test)
+    return model
 
-X_train, X_test, y_train, y_test = load_train_data()
-model = XGBClassifier(n_estimators=5000, learning_rate=0.05, max_depth=40, eval_metric='logloss')
-#model = XGBClassifier()
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-accuracy_score(y_pred, y_test)
 
-plot_importance(model)
-plt.show()
+
+file_path = "./board_library/sample_10nodes.csv"
+model = get_xgbmodel()
+print(model.predict(read_real_board(file_path)))
+
+
+
+
+
 
 
 
