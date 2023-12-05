@@ -177,7 +177,7 @@ def fight():
     result = ""
     while flag > 1:
         flag = a.machine_go(color=turn)
-        #a.showmap()
+        a.showmap()
         if turn == "RED":
             turn = "BLUE"
         else:

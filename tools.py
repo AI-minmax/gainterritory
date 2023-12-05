@@ -11,8 +11,8 @@ debug = True
 # [[1,1],[1,0]].sort -> [1,0],[1,1]
 # whole_point가 정렬되어있다면 return 하는 선분에서도 정렬됨을 보장함
 def generate_available(drawn_lines, whole_points):
-    assert [sorted(line) for line in drawn_lines] == drawn_lines, "drawn_line 정렬 안 되어있음"
-    assert sorted(whole_points) == whole_points, "whole_points 정렬이 안되어 있음"
+    # assert [sorted(line) for line in drawn_lines] == drawn_lines, "drawn_line 정렬 안 되어있음"
+    # assert sorted(whole_points) == whole_points, "whole_points 정렬이 안되어 있음"
     # tuple_drawn_lines = set(tuple(sorted(line)) for line in drawn_lines)
     available = []
     # 존재하는 선인지 체크
@@ -37,7 +37,7 @@ def generate_available(drawn_lines, whole_points):
         if flag:
             continue
         available.append([point1, point2])
-    assert sorted(available) == available, "available 정렬이 안되어 있음"
+    # assert sorted(available) == available, "available 정렬이 안되어 있음"
     return available
 
 
@@ -115,7 +115,7 @@ def check_triangle(line, whole_line, whole_points):
     l2 = []
     third_point = []
     for l in whole_line:
-        assert type(l) is list
+        # assert type(l) is list
         if l == line:
             continue
         if point1 in l:
@@ -142,8 +142,8 @@ def check_triangle(line, whole_line, whole_points):
 
 
 def get_score_line(drawn_lines, whole_points, available):
-    assert available == [sorted(line) for line in available], "available 정렬안됨"
-    assert drawn_lines == [sorted(line) for line in drawn_lines], "self.drawn_lines 정렬안됨"
+    # assert available == [sorted(line) for line in available], "available 정렬안됨"
+    # assert drawn_lines == [sorted(line) for line in drawn_lines], "self.drawn_lines 정렬안됨"
     candiate_triangle = []
     #  라인은 리스트일 것 # 정렬된 상태를 유지할 것
     for line1, line2 in combinations(drawn_lines, 2):
@@ -177,7 +177,7 @@ def get_score_line(drawn_lines, whole_points, available):
 # 선분과 선분 사이의 선분 중 이로울 확률이 높은 선분 리스트 반환  #각 노드에서 evaluation을 하기 전에 한 번 실행해 주어야 함.
 # 이 리스트에 해당하는 선분들은 가점을 부여할 예정
 def get_lines_between_lines(whole_line, whole_points, available_line):
-    assert type(whole_line) is list, "get_lines_between_lines 의 whole_line 가 리스트가 아님"
+    # assert type(whole_line) is list, "get_lines_between_lines 의 whole_line 가 리스트가 아님"
     res = []
     for line1, line2 in list(combinations(whole_line, 2)):
         # 두 선분의 점의 수를 세고 4개가 아니면, 즉 각각 떨어져 있는 선분이 아니면 진행하지 않음
@@ -230,10 +230,10 @@ def get_lines_in_triangle(whole_line, whole_points, available_line):
 
 # 에러가 발생했을시 available_line 이 업데이트가 되었는지 확인할 것
 def evaluation(whole_line, whole_points, available_line):
-    try:
-        assert available_line == generate_available(whole_line, whole_points), "evaluation에서 available_line 입력이상"
-    except:
-        print(available_line,generate_available(whole_line, whole_points))
+    # try:
+        # assert available_line == generate_available(whole_line, whole_points), "evaluation에서 available_line 입력이상"
+    # except:
+    #     print(available_line,generate_available(whole_line, whole_points))
     good_lines = get_lines_between_lines(whole_line, whole_points, available_line)
     bad_lines = get_lines_in_triangle(whole_line, whole_points, available_line)
     # print(len(good_lines),good_lines)

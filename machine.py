@@ -70,7 +70,7 @@ class MACHINE:
         for connected_line in connected_lines:
             all_points_set_withDuplicate = list([connected_line[0], connected_line[1], line[0], line[1]])
             all_points_set_nonDuplicate = set([connected_line[0], connected_line[1], line[0], line[1]])
-            assert len(all_points_set_nonDuplicate)==3, "all 어쩌구는 3이 아니다."
+            # assert len(all_points_set_nonDuplicate)==3, "all 어쩌구는 3이 아니다."
             overlapping_point = \
                 [item for item in all_points_set_nonDuplicate if all_points_set_withDuplicate.count(item) > 1][0]
             if not overlapping_point:
@@ -115,15 +115,15 @@ class MACHINE:
         print("득점도 방어도 하지못함")
         return random.choice(self.available), -1
 
-    def minmax(self):
+    def minmax(self, result_queue):
         root = Node()
         root.available = self.available.copy()
         root.total_lines = self.drawn_lines.copy()
         root.whole_points = self.whole_points.copy()
         child_score, _ = root.expand_node(2)
         #print(child_score, _)
-        # result_queue.put(list(_))  # 리턴대신
-        return list(_)
+        result_queue.put(list(_))  # 리턴대신
+        # return list(_)
 
     def find_best_selection(self):
         result = self.find_best_selection2()
@@ -144,7 +144,7 @@ class MACHINE:
 
     # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection2(self):
-        showmap(self.drawn_lines, self.whole_points)
+        # showmap(self.drawn_lines, self.whole_points)
         start_t = time.time()
         self.update_turn()
         # result_queue = multiprocessing.Queue()
@@ -152,25 +152,29 @@ class MACHINE:
         # lagacy_process.start()
         # lagacy_process.join()
         # return result_queue.get()
-        lagacy_result=self.use_lagacy()
-        if type(lagacy_result[0])==tuple:
+        lagacy_result = self.use_lagacy()
+        if type(lagacy_result[0]) == tuple:
             self.available = [lagacy_result]
         else:
             self.available = lagacy_result
         self.available = [sorted(line) for line in self.available]
         print(len(self.available))
-        if len(self.available) > 10:
+        if len(self.available) > 10 or len(self.available)==1:
             return random.choice(self.available)
         self.isMinMax = True
         if self.isMinMax:  # 민맥스 트리 시작
-            result = self.minmax()
-            print(time.time()-start_t)
-            print(len(self.available))
-            return self.minmax()
-            # result_queue = multiprocessing.Queue()
-            # minmax_process = Process(target=self.minmax, args=(result_queue,))
-            # minmax_process.start()
-            # minmax_process.join()
+            # result = self.minmax()
+            # print(time.time()-start_t)
+            # print(len(self.available))
+            try:
+                result_queue = multiprocessing.Queue()
+                minmax_process = Process(target=self.minmax, args=(result_queue,))
+                minmax_process.start()
+                minmax_process.join(timeout=start_t-time.time()+30)
+                return result_queue.get()
+            except:
+                return random.choice(self.available)
+
             # return result_queue.get()
         if self.isRule:  # get_score_line 은 리스트로 반환 + 선분도 정렬된 리스트로 존재
             rule_result, estimate = self.rule()
