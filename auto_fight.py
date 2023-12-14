@@ -1,17 +1,10 @@
 import random
-import time
 from itertools import combinations, product, chain
-from shapely import LineString, Point, Polygon, MultiLineString
+from shapely import LineString, Point, Polygon
 from machine import MACHINE
-import matplotlib.pyplot as plt
 from multiprocessing import Pool
-
-debug = True
-
 import matplotlib.pyplot as plt
-import time
-import pandas as pd
-import os
+debug = True
 
 
 class Auto_fight():
@@ -33,7 +26,7 @@ class Auto_fight():
         self.initialize_turn()
 
     def set_new_board(self):
-        self.num_dots = 17 #random.randrange(5, 21)
+        self.num_dots = random.randrange(5, 21)
         self.score = {"RED": 0, "BLUE": 0}  # USER, MACHINE
         self.drawn_lines = []  # Drawn Lines
         self.whole_points = []
@@ -206,6 +199,6 @@ if "__main__" == __name__:
     if debug:
         fight()
     else:
-        num_processes = 1  # 사용할 프로세스 수
+        num_processes = 24
         with Pool(num_processes) as pool:
             rows = pool.map(generating_data, range(num_processes))

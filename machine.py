@@ -147,11 +147,6 @@ class MACHINE:
         # showmap(self.drawn_lines, self.whole_points)
         start_t = time.time()
         self.update_turn()
-        # result_queue = multiprocessing.Queue()
-        # lagacy_process = Process(target=self.use_lagacy, args=(result_queue,))
-        # lagacy_process.start()
-        # lagacy_process.join()
-        # return result_queue.get()
         lagacy_result = self.use_lagacy()
         if type(lagacy_result[0]) == tuple:
             self.available = [lagacy_result]
@@ -163,14 +158,11 @@ class MACHINE:
             return random.choice(self.available)
         self.isMinMax = True
         if self.isMinMax:  # 민맥스 트리 시작
-            # result = self.minmax()
-            # print(time.time()-start_t)
-            # print(len(self.available))
             try:
                 result_queue = multiprocessing.Queue()
                 minmax_process = Process(target=self.minmax, args=(result_queue,))
                 minmax_process.start()
-                minmax_process.join(timeout=start_t-time.time()+30)
+                minmax_process.join(timeout=start_t-time.time()+50)
                 return result_queue.get()
             except:
                 return random.choice(self.available)
@@ -180,17 +172,18 @@ class MACHINE:
             rule_result, estimate = self.rule()
             if estimate == 2:  # 2점 득점할 수 있으면 바로 2점 득점
                 if self.isMinMax:
-                    minmax_process.terminate()
+                    pass
+                    # minmax_process.terminate()
                 return rule_result
         if self.isMinMax:
             if self.isMinMaxActivate:
                 remain_time = int(start_t - time.time() + 55)
-                minmax_process.join(timeout=remain_time)
-                if result_queue.empty():
-                    minmax_process.terminate()
-                    return rule_result
-                else:
-                    return result_queue.get()
+                # minmax_process.join(timeout=remain_time)
+                # if result_queue.empty():
+                #     minmax_process.terminate()
+                #     return rule_result
+                # else:
+                #     return result_queue.get()
             else:
                 self.isMinMaxActivate = True
                 return rule_result
@@ -241,8 +234,6 @@ class Node:
             cnt = cnt - 1
             child = Node(l, parent=self, alpha=self.alpha, beta=self.beta)
             child_score, _ = child.expand_node(depth_limit - 1)
-            #print(
-            #    f"Line: {l}, Child Score: {child_score}, Current Score: {score}, isOpponentTurn: {self.isOpponentTurn}")
             if self.isOpponentTurn:  # 상대방 turn일 때 (minimize-player가 되야 하는 경우에)
                 if child_score < self.beta:  # child_score가 infinity가 아닐 때만 업데이트 한다.
                     self.beta = child_score
@@ -263,35 +254,20 @@ class Node:
                 if child_score > self.alpha:  # child_score가 infinity가 아닐 때에만 업데이트
                     self.alpha = child_score
                     target_line = l
-
                 try:
-
                     pruning = self.beta_pruning(self.parent, child)  # True, false로 반환 (pruning이 가능할 경우에만 True 반환)
                     if pruning:
-                        #print("beta cut-off 발생!")
                         break
                     score = max(self.alpha, score)
 
                     if score >= self.beta:
-                        #print("아무튼 beta 머시기 발생!")
                         break
                 except:
                     pass
-        #print(cnt,"알파 베타")
         return (score, target_line)
 
     def alpha_pruning(self, parent, child):
-        # if parent.alpha > child.alpha:
-        #     return True
-        # else:
-        #     return False
-        #print("alpha쪽",parent.alpha,child.alpha)
         return parent.alpha > child.alpha
 
     def beta_pruning(self, parent, child):
-        # if parent.beta < child.beta:
-        #     return True
-        # else:
-        #     return False
-        #print("beta쪽", parent.alpha, child.alpha)
         return parent.beta < child.beta
