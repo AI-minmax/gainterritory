@@ -1,35 +1,13 @@
 import multiprocessing
-import queue
 import random
 import time
-from collections import Counter
 from multiprocessing import Process
-
 from legacy_machine import Legacy_M
-from tools import generate_available, inner_point, available_update, inner_point_usingInStealChecking, is_triangle, \
-    check_triangle, evaluation, showmap, get_score_line
-from shapely.geometry import LineString
-from itertools import combinations
+from tools import generate_available, inner_point_usingInStealChecking, is_triangle, \
+    check_triangle, evaluation, get_score_line
 
 
 class MACHINE:
-    """
-        [ MACHINE ]
-        MinMax Algorithm을 통해 수를 선택하는 객체.
-        - 모든 Machine Turn마다 변수들이 업데이트 됨
-
-        ** To Do **
-        MinMax Algorithm을 이용하여 최적의 수를 찾는 알고리즘 생성
-           - class 내에 함수를 추가할 수 있음
-           - 최종 결과는 find_best_selection을 통해 Line 형태로 도출
-               * Line: [(x1, y1), (x2, y2)] -> MACHINE class에서는 x값이 작은 점이 항상 왼쪽에 위치할 필요는 없음 (System이 organize 함)
-    """
-
-    # 내가 득점하면 +1, 상대 득점 -1 (score)
-    # 현재 상황에서 추가되는 lines: added_lines
-    # player에 대한 정보는 따로 필요 없을 것으로 판단'
-    # added_lines에는.. available line 추가 / 부모 단에서 available 검증해서 자식에게 보낼 것임
-    # 민맥스는 후반에 쓸 것인데, avaialble 숫자가 적고, whole_points 다 검사하면.. 속도 너무 느림
 
     def __init__(self, score=[0, 0], drawn_lines=[], whole_lines=[], whole_points=[], location=[]):
         self.id = "MACHINE"
@@ -47,17 +25,11 @@ class MACHINE:
         self.isMinMaxActivate = False
         self.isMinMax = False
 
-    # 상태 업데이트
     def update_turn(self):
         self.drawn_lines = [sorted(line) for line in self.drawn_lines]
         # if len(self.drawn_lines) < 2:
         self.available = generate_available(self.drawn_lines, self.whole_points)
 
-
-
-    # 삼각형을 이루는 선분 3개 중 2개가 이미 그어져 있는 경우를 만드는 상황을 판별하기 위한 함수에요
-    # 해당 함수에서 반환하는 connected_lines의 length가 1 이상이면 다음 턴에 상대방에게 삼각형을 뺏겨요. (상대방이 하나만 더 그으면 되거든요)
-    # available에서 한 선분을 뽑는다면, 선분에 양쪽 끝에 점이 있지 / 그 점에 연결된 선분들을 check를 해서 양쪽 점이 공통으로 가지고 있는 점이 일치하는 점이 있는지 확인 / 그 선분을 추가했을 때, check_triangle() 해서 True 반환하면, must_stealed_point()에서 True 반환
     def check_stealing_situation_inOpponentTurn(self, line):
         connected_lines = [l for l in self.drawn_lines if set(line) & set(l)]
         try:
@@ -97,7 +69,6 @@ class MACHINE:
         else:
             return True
 
-    # 유효한 선분인지 검사하는 함수 check_valid_line() (+상대방에게 steal 당하지 않도록 하는 최소한의 알고리즘 적용)
     def rule(self):
         square, triangle = get_score_line(self.drawn_lines, self.whole_points, self.available)
         if len(square) != 0:
@@ -121,30 +92,23 @@ class MACHINE:
         root.total_lines = self.drawn_lines.copy()
         root.whole_points = self.whole_points.copy()
         child_score, _ = root.expand_node(2)
-        #print(child_score, _)
-        result_queue.put(list(_))  # 리턴대신
-        # return list(_)
+        result_queue.put(list(_))
 
     def find_best_selection(self):
         result = self.find_best_selection2()
         self.drawn_lines.append(result)
-        #self.update_turn()
-
         return result
 
     def use_lagacy(self):
-        legacy =Legacy_M()
+        legacy = Legacy_M()
         legacy.score = self.score
         legacy.drawn_lines = self.drawn_lines
         legacy.whole_points = self.whole_points
         legacy.location = self.location
         legacy.triangles = self.triangles
         return legacy.find_best_selection()
-        #result_queue.put(legacy.find_best_selection())
 
-    # available은 최악의 상황이 아니면 모두 집어넣고 싶으므로, check_valid_line() 호출
     def find_best_selection2(self):
-        # showmap(self.drawn_lines, self.whole_points)
         start_t = time.time()
         self.update_turn()
         lagacy_result = self.use_lagacy()
@@ -154,36 +118,28 @@ class MACHINE:
             self.available = lagacy_result
         self.available = [sorted(line) for line in self.available]
         print(len(self.available))
-        if len(self.available) > 10 or len(self.available)==1:
+        if len(self.available) > 10 or len(self.available) == 1:
             return random.choice(self.available)
         self.isMinMax = True
-        if self.isMinMax:  # 민맥스 트리 시작
+        if self.isMinMax:
             try:
                 result_queue = multiprocessing.Queue()
                 minmax_process = Process(target=self.minmax, args=(result_queue,))
                 minmax_process.start()
-                minmax_process.join(timeout=start_t-time.time()+50)
+                minmax_process.join(timeout=start_t - time.time() + 50)
                 return result_queue.get()
             except:
                 return random.choice(self.available)
-
-            # return result_queue.get()
-        if self.isRule:  # get_score_line 은 리스트로 반환 + 선분도 정렬된 리스트로 존재
+        if self.isRule:
             rule_result, estimate = self.rule()
-            if estimate == 2:  # 2점 득점할 수 있으면 바로 2점 득점
+            if estimate == 2:
                 if self.isMinMax:
                     pass
-                    # minmax_process.terminate()
+
                 return rule_result
         if self.isMinMax:
             if self.isMinMaxActivate:
                 remain_time = int(start_t - time.time() + 55)
-                # minmax_process.join(timeout=remain_time)
-                # if result_queue.empty():
-                #     minmax_process.terminate()
-                #     return rule_result
-                # else:
-                #     return result_queue.get()
             else:
                 self.isMinMaxActivate = True
                 return rule_result
@@ -192,15 +148,13 @@ class MACHINE:
 
 
 class Node:
-    # 먼저 초기화할 때, alpha, beta 값들을 추가하자.
     def __init__(self, added_line=None, parent=None, alpha=float('-inf'), beta=float('inf')):
-        # self.ab_value = 0 (알파베타 가지치기용 isOpponent에 따라서 알파값인지 베타값인지 결정)
         self.alpha = alpha
         self.beta = beta
 
-        if parent is not None:  # root 노드가 아닌 경우
-            self.parent=parent
-            self.added_line = added_line  # 추가한 line (이번 turn에 그릴 line)
+        if parent is not None:
+            self.parent = parent
+            self.added_line = added_line
             self.total_lines = parent.total_lines.copy()
             self.total_lines.append(self.added_line)
             self.whole_points = parent.whole_points
@@ -212,9 +166,9 @@ class Node:
                 self.score = parent.score - score
             temp_list = self.total_lines.copy()
             temp_list.remove(added_line)
-            self.available = generate_available(self.total_lines,self.whole_points)
-        else:  # root 노드인 경우
-            self.added_line = None  # 추가한 line (이번 turn에 그릴 line)
+            self.available = generate_available(self.total_lines, self.whole_points)
+        else:
+            self.added_line = None
             self.total_lines = None
             self.whole_points = None
             self.score = 0
@@ -222,40 +176,38 @@ class Node:
             self.available = []
 
     def expand_node(self, depth_limit):
-        if len(self.available) == 0:  # 게임 끝났다는 의미
+        if len(self.available) == 0:
             return self.score, self.added_line
         score = float('inf') if self.isOpponentTurn else float('-inf')
-        if depth_limit == 0:  # 노드를 만들면서 tree를 계속 확장하다가 depth-limit에 도달했을 때
+        if depth_limit == 0:
             return evaluation(self.total_lines, self.whole_points,
-                              self.available), self.added_line  # 평가함수 적용할 계획 (score 대신에 evaluate()을 넣을 것임)
-        target_line = None  # target_line 비어있는 거 문제 해결
+                              self.available), self.added_line
+        target_line = None
         cnt = len(self.available)
-        for l in self.available:  # available 리스트의 선분들을 하나씩 보면서 Search
+        for l in self.available:
             cnt = cnt - 1
             child = Node(l, parent=self, alpha=self.alpha, beta=self.beta)
             child_score, _ = child.expand_node(depth_limit - 1)
-            if self.isOpponentTurn:  # 상대방 turn일 때 (minimize-player가 되야 하는 경우에)
-                if child_score < self.beta:  # child_score가 infinity가 아닐 때만 업데이트 한다.
+            if self.isOpponentTurn:
+                if child_score < self.beta:
                     self.beta = child_score
                     target_line = l
                 try:
 
-                    pruning = self.alpha_pruning(self.parent, child)  # True, false로 반환 (pruning이 가능할 경우에만 True 반환)
+                    pruning = self.alpha_pruning(self.parent, child)
                     if pruning:
-                        #print("alpha cut-off 발생!")
                         break
                     score = min(self.beta, score)
                     if score <= self.alpha:
-                        #print("아무튼 alpha 쪽 발생!")
                         break
                 except:
                     pass
-            else:  # 내 turn일 때 (maximize-player가 되야 하는 경우에)
-                if child_score > self.alpha:  # child_score가 infinity가 아닐 때에만 업데이트
+            else:
+                if child_score > self.alpha:
                     self.alpha = child_score
                     target_line = l
                 try:
-                    pruning = self.beta_pruning(self.parent, child)  # True, false로 반환 (pruning이 가능할 경우에만 True 반환)
+                    pruning = self.beta_pruning(self.parent, child)
                     if pruning:
                         break
                     score = max(self.alpha, score)
